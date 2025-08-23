@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Reset PWA (SW + Caches + IndexedDB + Storage)</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<div class="container py-4">
+  <h2 class="mb-3">Reset PWA</h2>
+  <p>Este utilitario borra <strong>Service Workers</strong>, <strong>Cache Storage</strong>, <strong>IndexedDB</strong>, <strong>localStorage</strong> y <strong>sessionStorage</strong> para <em>este origen</em>.</p>
+  <div class="btn-toolbar mb-3">
+    <button class="btn btn-danger mr-2" id="btn-reset-all">Unregister SW + limpiar TODO</button>
+    <button class="btn btn-outline-secondary" id="btn-open-origin">Abrir app</button>
+  </div>
+  <pre id="log" class="p-3 bg-light border" style="white-space:pre-wrap;max-height:50vh;overflow:auto"></pre>
+</div>
+<script>
+const logEl = document.getElementById('log');
+function log(t){ logEl.textContent += t + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+async function deleteIDBByName(name){return await new Promise(r=>{const req=indexedDB.deleteDatabase(name);req.onsuccess=()=>r(true);req.onerror=()=>r(false);req.onblocked=()=>r(false);});}
+async function deleteAllIndexedDB(){
+  log('• Borrando IndexedDB…');
+  try{
+    if(indexedDB && indexedDB.databases){
+      const dbs = await indexedDB.databases();
+      for(const db of dbs){
+        if(db && db.name){ log('  - ' + db.name); await deleteIDBByName(db.name); }
+      }
+      return;
+    }
+  }catch(e){ log('  ! databases() no soportado: ' + (e.message||e)); }
+  for(const n of ['tt_pro_bs_db','workbox-precache','keyval-store']){ log('  - ' + n); await deleteIDBByName(n); }
+  log('✓ IndexedDB listo');
+}
+async function clearCaches(){
+  log('• Borrando CacheStorage…');
+  if(!('caches' in window)){ log('  ! CacheStorage no soportado'); return; }
+  const ks = await caches.keys();
+  for(const k of ks){ log('  - ' + k); await caches.delete(k); }
+  log('✓ CacheStorage listo');
+}
+async function unregisterSW(){
+  log('• Desregistrando Service Workers…');
+  if(!('serviceWorker' in navigator)){ log('  ! SW no soportado'); return; }
+  const regs = await navigator.serviceWorker.getRegistrations();
+  for(const r of regs){ await r.unregister(); log('  - unregistered'); }
+  log('✓ Service Workers listos');
+}
+async function clearStorage(){ log('• Limpiando localStorage/sessionStorage…'); try{localStorage.clear();}catch(e){} try{sessionStorage.clear();}catch(e){} log('✓ Storage listo'); }
+document.getElementById('btn-reset-all').onclick = async () => {
+  log('== INICIO RESET ==');
+  await unregisterSW(); await clearCaches(); await deleteAllIndexedDB(); await clearStorage();
+  log('== FIN RESET ==');
+    log('Listo. Recarga la app.');
+  //alert('Listo. Recarga la app.');
+};
+document.getElementById('btn-open-origin').onclick = () => {
+  const base = location.origin + location.pathname.replace(/\/[^\/]*$/, '/');
+  location.href = base;
+};
+</script>

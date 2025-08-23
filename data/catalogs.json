@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "fields": [
+    {
+      "id": "q1",
+      "label": "Tipo de PDV",
+      "type": "radio",
+      "required": true,
+      "options": [
+        {
+          "value": "tienda",
+          "label": "Tienda"
+        },
+        {
+          "value": "farmacia",
+          "label": "Farmacia"
+        },
+        {
+          "value": "abarrotes",
+          "label": "Abarrotes"
+        }
+      ]
+    },
+    {
+      "id": "q2",
+      "label": "Tiene refrigeración",
+      "type": "radio",
+      "required": true,
+      "options": [
+        {
+          "value": "si",
+          "label": "Sí"
+        },
+        {
+          "value": "no",
+          "label": "No"
+        }
+      ]
+    },
+    {
+      "id": "q3",
+      "label": "Observaciones",
+      "type": "textarea",
+      "required": false
+    }
+  ]
+}

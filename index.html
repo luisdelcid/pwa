@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <!-- Codificación estándar -->
+  <meta charset="utf-8">
+
+  <!-- Viewport para móviles; evita zoom manual (UX tipo app). 'viewport-fit=cover' permite usar area segura en iOS. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+
+  <!-- Color del UI del navegador (Chrome/Android, Windows, etc.) -->
+  <meta name="theme-color" content="#007bff">
+
+  <!-- Título de la app -->
+  <title>Todo Terreno PRO — Bootstrap 4 + jQuery</title>
+
+  <!-- Manifest PWA: nombre, íconos, scope y comportamiento de instalación -->
+  <link rel="manifest" href="./manifest.webmanifest">
+
+  <!-- Favicon/ícono base (también útil para splash en algunas plataformas) -->
+  <link rel="icon" href="./assets/icons/icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="./assets/icons/icon-192.png">
+
+  <!-- CSS de Bootstrap 4.6 (solo estilos, bundle JS va al final) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+
+  <!-- Estilos propios de la app (versionados por querystring) -->
+  <link href="./css/app.css?v=v5.6.0-r6" rel="stylesheet">
+
+  <!-- Evita cachear este HTML (útil durante desarrollo/QA) -->
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate">
+
+  <!-- Utilidad mínima para íconos inline en los botones del header -->
+  <style>
+    .icon-img { width: 20px; height: 20px; vertical-align: -3px; }
+  </style>
+</head>
+
+<body class="app-body">
+  <!--
+    HEADER FIJO (fixed-top)
+    - Incluye logo/título a la izquierda y acciones rápidas a la derecha.
+    - Botones: Ajustes (engranaje) y Cerrar sesión (salir).
+  -->
+  <header class="app-header navbar navbar-light bg-white border-bottom fixed-top">
+    <div class="container-fluid align-items-center d-flex justify-content-between">
+      <div class="d-flex align-items-center">
+        <!-- Logotipo redondeado -->
+        <img src="./assets/icons/icon-192.png" class="rounded" width="28" height="28" alt="">
+        <strong class="ml-2">Todo Terreno PRO</strong>
+      </div>
+
+      <!-- Acciones de usuario en la barra superior -->
+      <div class="d-flex align-items-center">
+        <!-- Botón: Ajustes (navega a #/settings por JS en main.js) -->
+        <button class="btn btn-link text-decoration-none" id="btn-settings" title="Ajustes">
+          <img class="icon-img" alt="Ajustes" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nIzZjNzU3ZCcgZD0nTTE5LjE0LDEyLjk0Yy4wNC0uMzEuMDYtLjYzLjA2LS45NGwyLjAzLTEuNThjLjE4LS4xNC4yMy0uNDAuMTItLjYxbC0xLjkyLTMuMzJjLS4xMS0uMjEtLjM2LS4zLS41OC0uMjJsLTIuMzkuOTZjLS41LS4zOC0xLjA1LS42OS0xLjY1LS45MkwxNC40LDIuNWMtLjA1LS4yMy0uMjUtLjQtLjQ5LS40aC0zLjgyYy0uMjQsMC0uNDQuMTctLjQ5LjRsLS4zNiwyLjM3Yy0uNi4yMy0xLjE2LjU0LTEuNjYuOTJsLTIuMzgtLjk2Yy0uMjItLjA5LS40Ny4wMS0uNTguMjJMMi4xMSw2Ljg3Yy0uMTEuMjEtLjA2LjQ3LjEyLjYxbDIuMDMsMS41OGMtLjA0LjMxLS4wNi42My0uMDYuOTRzLjAyLjYzLjA2Ljk0bC0yLjAzLDEuNThjLS4xOC4xNC0uMjMuNC0uMTIuNjFsMS45MiwzLjMyYy4xMS4yMS4zNi4zLjU4LjIybDIuMzguOTZjLjUuMzggMS4wNi42OSAxLjY2LjkybC4zNiwyLjM3Yy4wNS4yMy4yNS40LjQ5LjRoMy44MmMuMjQsMCwuNDQtLjE3LjQ5LS40bC4zNi0yLjM3Yy42LS4yMyAxLjE1LS41NCAxLjY1LS45MmwyLjM5Ljk2Yy4yMi4wOS40Ny0uMDEuNTgtLjIybDEuOTItMy4zMmMuMTEtLjIxLjA2LS40Ny0uMTItLjYxbC0yLjAzLTEuNThoLjAwWk0xMiwxNS41Yy0xLjkzLDAtMy41LTEuNTctMy41LTMuNXMxLjU3LTMuNSwzLjUtMy41LDMuNSwxLjU3LDMuNSwzLjUtMS41NywzLjUtMy41LDMuNVonLz48L3N2Zz4=">
+        </button>
+
+        <!-- Botón: Cerrar sesión (limpia credenciales por JS en main.js) -->
+        <button class="btn btn-link text-decoration-none" id="btn-logout" title="Cerrar sesión">
+          <img class="icon-img" alt="Salir" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyNCAyNCc+PHBhdGggZmlsbD0nIzZjNzU3ZCcgZD0nTTE2IDEzdj0tMkg3VjhsLTUgNCA1IDR2LTN6Jy8+PHBhdGggZmlsbD0nIzZjNzU3ZCcgZD0nTTIwIDNoLThhMiAyIDAgMCAwLTIgMnYzaDJWNVoyMHYxNGgtOHYtM2gtMnYzYTIgMiAwIDAgMCAyIDJoOGEyIDIgMCAwIDAgMi0yVjVhMiAyIDAgMCAwLTItMnonLz48L3N2Zz4=">
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!--
+    BREADCRUMBS (sticky-top)
+    - Muestra la ruta de navegación; el contenido se inyecta desde main.js en #breadcrumbs
+    - Se posiciona justo debajo del header fijo
+  -->
+  <nav class="app-bc border-bottom bg-white sticky-top">
+    <div class="container-fluid">
+      <ol class="breadcrumb mb-0 py-2 px-0" id="breadcrumbs"></ol>
+    </div>
+  </nav>
+
+  <!--
+    MAIN (contenedor donde cada vista renderiza su HTML)
+    - #app-main es gestionado por el router hash (main.js)
+    - tabindex="-1" permite manejar focus programático para accesibilidad
+  -->
+  <main class="app-main container-fluid" id="app-main" role="main" tabindex="-1"></main>
+
+  <!--
+    FOOTER FIJO (fixed-bottom)
+    - Chips informativos: estado de conexión, pendientes, sincronizados
+    - Botón "Sincronizar" para forzar tryProcessQueue()
+  -->
+  <footer class="app-footer fixed-bottom border-top bg-white">
+    <div class="container-fluid py-2">
+      <div class="d-flex align-items-center flex-wrap w-100">
+        <span class="badge badge-pill badge-success" id="chip-online">Online</span>
+        <a href="#/pending" class="ml-2 text-decoration-none"><span class="badge badge-pill badge-warning" id="chip-pending">Pend: 0</span></a>
+        <a href="#/synced" class="ml-2 text-decoration-none"><span class="badge badge-pill badge-primary" id="chip-synced">Sync: 0</span></a>
+        <button class="btn btn-sm btn-primary ml-auto" id="btn-sync-footer">Sincronizar</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Dependencias JS (CDN oficiales) -->
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+
+  <!-- Código de la app (versionado por querystring) -->
+  <script src="./js/main.js?v=v5.6.0-r5"></script>
+
+  <!-- Registro de Service Worker
+       - Se hace en 'load' para no bloquear el first paint
+       - scope './' asegura que controle todas las rutas relativas del sitio
+       - catch silencioso para evitar alertas en navegadores sin soporte -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () =>
+        navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {})
+      );
+    }
+  </script>
+</body>
+</html>

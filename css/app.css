@@ -1,0 +1,206 @@
+:root {
+  /* Alturas fijas de layout para header, breadcrumbs y footer (en px) */
+  --app-header-h: 56px;
+  --app-breadcrumb-h: 42px;
+  --app-footer-h: 54px;
+}
+
+/* Fondo general del cuerpo de la app */
+.app-body { background: #f7f9fc; }
+
+/* Barra superior (altura fija) */
+.app-header { height: var(--app-header-h); }
+
+/* Cinta de breadcrumbs (se posiciona debajo del header) */
+.app-bc {
+  top: var(--app-header-h);
+  z-index: 1029;                 /* sobre contenido (similar a Bootstrap navbars) */
+  min-height: var(--app-breadcrumb-h);
+}
+
+/* Área principal: agrega padding top/bottom para no tapar header/breadcrumbs/footer */
+.app-main {
+  padding-top: calc(var(--app-header-h) + var(--app-breadcrumb-h) + 12px);
+  padding-bottom: calc(var(--app-footer-h) + 12px);
+  min-height: 100vh;             /* pantalla completa (sin contar header/footer) */
+}
+
+/* Barra inferior fija (altura fija) */
+.app-footer { height: var(--app-footer-h); }
+
+/* Tarjetas con “sensación táctil”: bordes redondeados + sombra suave */
+.card-tap {
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, .04),
+    0 8px 24px rgba(0, 0, 0, .06);
+}
+
+/* Chips de estado (Pendiente/Lleno/Sincronizado) */
+.badge.status { font-weight: 600; }
+.badge.status.pending { background: #fff3cd; color: #8a6d3b; }   /* amarillo */
+.badge.status.filled  { background: #d1ecf1; color: #0c5460; }   /* celeste */
+.badge.status.synced  { background: #d4edda; color: #155724; }   /* verde  */
+
+/* Barra de progreso delgada */
+.progress.thin { height: 6px; }
+
+/* Etiquetas de campos compactas (form) */
+.compact-label { font-size: .875rem; color: #6c757d; }
+
+/* Título por paso (form) */
+.form-step-title { font-weight: 600; }
+
+/* Bloque de acciones pegado al fondo (dentro de .app-main) */
+.sticky-actions {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding: 8px 0;
+  border-top: 1px solid rgba(0, 0, 0, .06);
+}
+
+/* Caja de código (para logs/diagnóstico) */
+.codebox {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;          /* conservar saltos y envolver líneas largas */
+}
+
+/* Aviso para modo offline */
+.offline-hint { font-size: .9rem; color: #6c757d; }
+
+/* ----------
+ * CÁMARA
+ * ---------- */
+
+/* Contenedor general del widget de cámara (oculto hasta “Encender cámara”) */
+.camera-wrap { display: none; }
+
+/* Marco de la cámara (mantiene relación 3:2 y recorta overflow) */
+.camera-frame {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;               /* back negro si tarda el stream */
+}
+
+/* Ratio 3:2 mediante padding-top (66.6667%) */
+.camera-frame::before {
+  content: "";
+  display: block;
+  padding-top: 66.6667%;         /* 3/2 = 1.5 => 100/1.5 ≈ 66.6667% */
+}
+
+/* Video/canvas ocupan todo el frame */
+.camera-frame > .media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;              /* recorte tipo “cover” */
+  background: #000;
+  transition: none !important;    /* evitar transiciones al alternar video/canvas */
+}
+
+/* Controles de la cámara (visibles cuando procede) */
+.camera-controls { display: none; }
+.camera-controls .btn { min-width: 120px; }
+
+/* ----------
+ * SELECTORES EN TARJETAS (radio/checkbox como “cards”)
+ * ---------- */
+
+/* Grid de tarjetas (2 columnas en desktop, 1 en móvil) */
+.select-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: .75rem;
+}
+
+/* Tarjeta clicable (hover suave, borde visible) */
+.select-card {
+  cursor: pointer;
+  transition: box-shadow .15s ease-in-out, border-color .15s ease-in-out;
+  border-radius: 12px;
+}
+
+.select-card .card-body { padding: .8rem 1rem; }
+.select-card .title { font-weight: 600; }
+.select-card .desc  { font-size: .85rem; color: #6c757d; }
+
+/* Inputs radio/checkbox ocultos (accesibles para focus) */
+input.select-hidden {
+  position: absolute !important;
+  left: -9999px !important;
+  opacity: 0 !important;
+}
+
+/* Resalte de enfoque accesible al tabular */
+input.select-hidden:focus + label.select-card {
+  box-shadow: 0 0 0 .2rem rgba(0, 123, 255, .25);
+}
+
+/* Estado seleccionado: borde azul + fondo sutil */
+input.select-hidden:checked + label.select-card {
+  border-color: #007bff;
+  background: #eef5ff;
+}
+
+/* Responsive: 1 columna en pantallas pequeñas */
+@media (max-width: 420px) {
+  .select-cards { grid-template-columns: 1fr; }
+}
+/* =============================
+ * VARIANTE DE TARJETAS CON CHECK (COMPATIBLE CON main.js)
+ * Estructura real que genera renderFieldCard():
+ *   <input type="radio|checkbox" class="select-hidden" id="f-0" name="f">
+ *   <label for="f-0" class="card select-card border">
+ *     <div class="card-body p-2"><div class="title">…</div></div>
+ *   </label>
+ * ============================= */
+:root { --primary: #007bff; } /* usa tu color de marca */
+
+label.select-card{
+  width:100%;
+  font-size:1rem;
+  position:relative;                /* para el ::after del check */
+  display:flex; align-items:center; justify-content:space-between;
+  border:2px solid #e5e7eb;         /* GRIS cuando NO está seleccionado */
+  border-radius:12px;                /* consistente con .select-card */
+  box-shadow:none;
+}
+
+/* hover cuando el input hermano existe */
+input.select-hidden + label.select-card:hover{ cursor:pointer; }
+
+/* borde/fondo al seleccionar */
+input.select-hidden:checked + label.select-card{
+  border-color:var(--primary);
+  background:#eef5ff;
+  transition:border .3s;
+}
+
+/* “check” SVG embebido (círculo + palomita) a la derecha */
+input.select-hidden:checked + label.select-card::after{
+  content:"";
+  width:24px; height:24px;
+  position:absolute; right:12px; top:50%;
+  transform:translateY(-50%);
+  background-repeat:no-repeat; background-size:contain;
+  /* OJO: el color #007bff está “horneado” en el SVG; si cambias --primary,
+     actualiza también este valor (o genera variantes si lo necesitas). */
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23007bff' stroke-width='2'/%3E%3Cpath d='M7 12.5l3 3 6-6' fill='none' stroke='%23007bff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  animation:fadeInCheckbox .5s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* accesibilidad: anillo de enfoque ya lo tienes definido arriba para select-hidden */
+/* input.select-hidden:focus + label.select-card { box-shadow:0 0 0 .2rem rgba(0,123,255,.25); } */
+
+@keyframes fadeInCheckbox{
+  from{ opacity:0; transform:translateY(-50%) rotateZ(-20deg); }
+  to{   opacity:1; transform:translateY(-50%) rotateZ(0deg); }
+}
+@media (prefers-reduced-motion: reduce){
+  input.select-hidden:checked + label.select-card::after{ animation:none; }
+}
