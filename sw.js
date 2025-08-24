@@ -6,8 +6,7 @@ const PRECACHE = [
   './js/main.js','./css/app.css','./sw-reset.html',
   'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js',
-  'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js',
-  './data/catalogs.json','./data/pdvs_all.json'
+  'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js'
 ];
 self.addEventListener('install', (e)=>{ e.waitUntil((async()=>{ const c=await caches.open(CACHE); await c.addAll(PRECACHE); })()); self.skipWaiting(); });
 self.addEventListener('activate',(e)=>{ e.waitUntil((async()=>{ for(const k of await caches.keys()){ if(k!==CACHE) await caches.delete(k);} })()); self.clients.claim(); });

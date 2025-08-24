@@ -252,54 +252,45 @@
     $('#chip-synced').text('Sync: ' + synced);
   }
 
-  // ---------------------------------------------------------------------------
-  // Fetch helpers
-  // ---------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------
+    // Fetch helpers
+    // ---------------------------------------------------------------------------
 
-  /**
-   * fetch JSON sin cache.
-   */
-  async function readJSON(url) {
-    const r = await fetch(url, { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  }
+    /**
+     * Descarga catálogos desde API.
+     */
+    async function fetchCatalogs() {
+      const base = trimSlash(getApiBase());
+      const jwt = localStorage.getItem('jwt') || '';
 
-  /**
-   * Descarga catálogos desde API (si hay JWT) o fallback local.
-   */
-  async function fetchCatalogs() {
-    const base = trimSlash(getApiBase());
-    const jwt = localStorage.getItem('jwt') || '';
+      try {
+        if (base && jwt) {
+          const u = base + '/wp-json/myapp/v1/catalogs';
+          const r = await fetch(u, { headers: { Authorization: 'Bearer ' + jwt } });
+          if (r.ok) return r.json();
+        }
+      } catch (e) {}
 
-    try {
-      if (base && jwt) {
-        const u = base + '/wp-json/myapp/v1/catalogs';
-        const r = await fetch(u, { headers: { Authorization: 'Bearer ' + jwt } });
-        if (r.ok) return r.json();
-      }
-    } catch (e) {}
+      return [];
+    }
 
-    return readJSON('./data/catalogs.json');
-  }
+    /**
+     * Descarga PDVs desde API.
+     */
+    async function fetchPdvsAll() {
+      const base = trimSlash(getApiBase());
+      const jwt = localStorage.getItem('jwt') || '';
 
-  /**
-   * Descarga PDVs desde API (si hay JWT) o fallback local.
-   */
-  async function fetchPdvsAll() {
-    const base = trimSlash(getApiBase());
-    const jwt = localStorage.getItem('jwt') || '';
+      try {
+        if (base && jwt) {
+          const u = base + '/wp-json/myapp/v1/pdvs_all';
+          const r = await fetch(u, { headers: { Authorization: 'Bearer ' + jwt } });
+          if (r.ok) return r.json();
+        }
+      } catch (e) {}
 
-    try {
-      if (base && jwt) {
-        const u = base + '/wp-json/myapp/v1/pdvs_all';
-        const r = await fetch(u, { headers: { Authorization: 'Bearer ' + jwt } });
-        if (r.ok) return r.json();
-      }
-    } catch (e) {}
-
-    return readJSON('./data/pdvs_all.json');
-  }
+      return [];
+    }
 
   /**
    * Descarga y persiste en IndexedDB los catálogos + PDVs.
