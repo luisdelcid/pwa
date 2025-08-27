@@ -65,6 +65,7 @@
   // ---------------------------------------------------------------------------
   const views = {
     '/': renderLogin,
+    '/routes': renderRoutes,
     '/pdvs': renderPdvs,
     '/form': renderForm,
     '/settings': renderSettings,
@@ -415,7 +416,7 @@
     // Botón: entrar en modo offline si hay sesión previa
     $('#btn-offline').on('click', () => {
       if (localStorage.getItem('sessionActive') === '1') {
-        location.hash = '#/pdvs';
+        location.hash = '#/routes';
       } else {
         alert('No hay sesión previa.');
       }
@@ -447,7 +448,7 @@
         await bootstrapData();
         await loadCached();
 
-        location.hash = '#/pdvs';
+        location.hash = '#/routes';
       } catch (e) {
         $('#login-error').text('Error de login/bootstrap: ' + (e.message || e));
       }
@@ -464,17 +465,79 @@
   }
 
   /**
-   * Vista: Listado de PDVs (con filtro por ruta y progreso global)
+   * Vista: Listado de Rutas con progreso.
+   */
+  async function renderRoutes($c) {
+    if (!ensureAuth($c)) return;
+
+    renderHeaderTitle('Rutas');
+    setBreadcrumbs([{ label: 'Rutas', href: '#/routes', active: true }]);
+
+    await loadCached();
+
+    if (!store.pdvsAll.length) {
+      try {
+        await bootstrapData();
+        await loadCached();
+      } catch (e) {}
+    }
+
+    const routeMap = new Map();
+    for (const p of store.pdvsAll) {
+      if (p.route && p.route.id) {
+        const id = String(p.route.id);
+        if (!routeMap.has(id)) {
+          routeMap.set(id, { title: p.route.title || ('Ruta ' + p.route.id), pdvs: [] });
+        }
+        routeMap.get(id).pdvs.push(p);
+      }
+    }
+
+    const routes = Array.from(routeMap.entries())
+      .map(([id, info]) => ({ id, title: info.title, pdvs: info.pdvs }))
+      .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
+    $c.html(
+      '<div class="container py-3">' +
+        '<h5 class="mb-3">Rutas</h5>' +
+        '<div class="list-group" id="route-list"></div>' +
+      '</div>'
+    );
+
+    const $list = $('#route-list');
+    if (!routes.length) {
+      $list.append('<div class="list-group-item small text-muted">No hay rutas asignadas.</div>');
+    } else {
+      routes.forEach((r) => {
+        const prog = summarizeProgress(r.pdvs);
+        const $i = $('<div/>')
+          .addClass('list-group-item list-group-item-action')
+          .attr('data-id', r.id)
+          .html(
+            '<div class="d-flex w-100 justify-content-between align-items-center">' +
+              '<div class="font-weight-bold">' + r.title + '</div>' +
+              '<span class="badge badge-light">' + prog.done + '/' + prog.total + '</span>' +
+            '</div>' +
+            '<div class="progress thin mt-2"><div class="progress-bar" style="width:' + prog.pct + '%"></div></div>'
+          );
+        $list.append($i);
+      });
+    }
+
+    $list.on('click', '.list-group-item', function () {
+      const id = $(this).data('id');
+      if (id) location.hash = '#/pdvs?routeId=' + encodeURIComponent(id);
+    });
+  }
+
+  /**
+   * Vista: Listado de PDVs por ruta con filtro de sub-ruta.
    */
   async function renderPdvs($c, query) {
     if (!ensureAuth($c)) return;
 
-    renderHeaderTitle('PDVs');
-    setBreadcrumbs([{ label: 'PDVs', href: '#/pdvs', active: true }]);
-
     await loadCached();
 
-    // Si no hay PDVs en caché, intenta descargar
     if (!store.pdvsAll.length) {
       try {
         await bootstrapData();
@@ -483,34 +546,48 @@
     }
 
     const selectedRoute = (query.routeId || '').trim();
+    if (!selectedRoute) {
+      location.hash = '#/routes';
+      return;
+    }
 
-    // Construir mapa de rutas (id -> título)
-    const routeMap = new Map();
-    for (const p of store.pdvsAll) {
-      if (p.route && p.route.id) {
-        routeMap.set(String(p.route.id), p.route.title || ('Ruta ' + p.route.id));
+    const routePdvs = store.pdvsAll.filter(
+      (p) => String(p.route && p.route.id) === String(selectedRoute)
+    );
+    const routeTitle = routePdvs[0] && routePdvs[0].route ? routePdvs[0].route.title : 'Ruta ' + selectedRoute;
+
+    const selectedSub = (query.subrouteId || '').trim();
+
+    const subrouteMap = new Map();
+    for (const p of routePdvs) {
+      if (p.subroute && p.subroute.id) {
+        subrouteMap.set(String(p.subroute.id), p.subroute.title || p.subroute.id);
       }
     }
 
-    const routeOptions = Array.from(routeMap.entries())
+    const subOptions = Array.from(subrouteMap.entries())
       .map(([id, title]) => ({ id, title }))
       .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
-    // Filtro aplicado para el progreso general
-    const filtered = store.pdvsAll.filter(
-      (p) => !selectedRoute || String(p.route && p.route.id) === String(selectedRoute)
+    const filtered = routePdvs.filter(
+      (p) => !selectedSub || String(p.subroute && p.subroute.id) === String(selectedSub)
     );
 
     const prog = summarizeProgress(filtered);
 
-    // Estructura base de la vista
+    renderHeaderTitle(routeTitle);
+    setBreadcrumbs([
+      { label: 'Rutas', href: '#/routes' },
+      { label: routeTitle, active: true },
+    ]);
+
     $c.html(
       '<div class="container py-3">' +
         '<div class="d-flex align-items-center mb-2">' +
-          '<h5 class="m-0">Puntos de venta</h5>' +
+          '<h5 class="m-0">' + routeTitle + '</h5>' +
           '<div class="ml-auto d-flex align-items-center">' +
-            '<label class="mr-2 mb-0 small text-muted">Ruta</label>' +
-            '<select class="form-control form-control-sm" id="route-filter" style="min-width:220px"></select>' +
+            '<label class="mr-2 mb-0 small text-muted">Día</label>' +
+            '<select class="form-control form-control-sm" id="subroute-filter" style="min-width:220px"></select>' +
           '</div>' +
         '</div>' +
 
@@ -529,17 +606,15 @@
       '</div>'
     );
 
-    // Poblado del select de rutas
-    const $sel = $('#route-filter');
-    $sel.append('<option value="">Todas</option>');
-    routeOptions.forEach((r) => $sel.append('<option value="' + r.id + '">' + r.title + '</option>'));
-    if (selectedRoute) $sel.val(selectedRoute);
+    const $sel = $('#subroute-filter');
+    $sel.append('<option value="">Todos</option>');
+    subOptions.forEach((s) => $sel.append('<option value="' + s.id + '">' + s.title + '</option>'));
+    if (selectedSub) $sel.val(selectedSub);
 
-    // Render de filas (aplica filtro si corresponde)
     function renderRows() {
       const $list = $('#pdv-list').empty();
-      const rows = store.pdvsAll.filter(
-        (p) => !selectedRoute || String(p.route && p.route.id) === String(selectedRoute)
+      const rows = routePdvs.filter(
+        (p) => !selectedSub || String(p.subroute && p.subroute.id) === String(selectedSub)
       );
 
       if (!rows.length) {
@@ -569,10 +644,9 @@
 
     renderRows();
 
-    // Cambio de filtro -> actualiza hash para mantener estado
     $sel.on('change', function () {
       const v = $(this).val() || '';
-      const base = '#/pdvs' + (v ? ('?routeId=' + encodeURIComponent(v)) : '');
+      const base = '#/pdvs?routeId=' + encodeURIComponent(selectedRoute) + (v ? ('&subrouteId=' + encodeURIComponent(v)) : '');
       location.hash = base;
     });
   }
@@ -813,6 +887,7 @@
     const fields = store.catalogs.fields || [];
     const pdv = (store.pdvsAll || []).find((x) => String(x.id) === String(pdvId));
     const routeId = pdv && pdv.route ? pdv.route.id : '';
+    const routeTitle = pdv && pdv.route ? (pdv.route.title || ('Ruta ' + pdv.route.id)) : '';
 
     let answers = {}; // Respuestas acumuladas por id de campo
     let step = 0;     // Paso actual (0..N)
@@ -823,7 +898,8 @@
     const total = fields.length + 2; // campos + (foto) + (geo)
 
     setBreadcrumbs([
-      { label: 'PDVs', href: '#/pdvs' },
+      { label: 'Rutas', href: '#/routes' },
+      { label: routeTitle, href: '#/pdvs?routeId=' + encodeURIComponent(routeId) },
       { label: (pdv ? (pdv.code + ' — ' + pdv.name) : 'Formulario'), active: true },
     ]);
 
@@ -956,7 +1032,7 @@
       try { await cam.stop(); } catch (e) {}
 
       alert('Guardado local ✔️');
-      location.hash = '#/pdvs';
+      location.hash = '#/pdvs?routeId=' + encodeURIComponent(routeId);
     }
 
     // Siguiente / Finalizar
@@ -982,7 +1058,7 @@
         await mount();
       } else {
         try { await cam.stop(); } catch (e) {}
-        location.hash = '#/pdvs';
+        location.hash = '#/pdvs?routeId=' + encodeURIComponent(routeId);
       }
     });
 
@@ -1061,7 +1137,7 @@
    * Vista: Pendientes (no sincronizados)
    */
   async function renderPending($c) {
-    setBreadcrumbs([{ label: 'PDVs', href: '#/pdvs' }, { label: 'Pendientes', active: true }]);
+    setBreadcrumbs([{ label: 'Rutas', href: '#/routes' }, { label: 'Pendientes', active: true }]);
 
     const rows = (await idb.all('responses')).filter((x) => x.status !== 'synced');
 
@@ -1087,7 +1163,7 @@
    * Vista: Sincronizados
    */
   async function renderSynced($c) {
-    setBreadcrumbs([{ label: 'PDVs', href: '#/pdvs' }, { label: 'Sincronizados', active: true }]);
+    setBreadcrumbs([{ label: 'Rutas', href: '#/routes' }, { label: 'Sincronizados', active: true }]);
 
     const rows = (await idb.all('responses')).filter((x) => x.status === 'synced');
 
@@ -1113,7 +1189,7 @@
    * Vista: Sincronización manual (botón)
    */
   async function renderSync($c) {
-    setBreadcrumbs([{ label: 'PDVs', href: '#/pdvs' }, { label: 'Sincronización', active: true }]);
+    setBreadcrumbs([{ label: 'Rutas', href: '#/routes' }, { label: 'Sincronización', active: true }]);
 
     $c.html(
       '<div class="container py-3">' +
@@ -1147,7 +1223,7 @@
    * Vista: Ajustes
    */
   async function renderSettings($c) {
-    const home = hasSession() ? '#/pdvs' : '#/';
+    const home = hasSession() ? '#/routes' : '#/';
 
     setBreadcrumbs([{ label: 'Inicio', href: home }, { label: 'Ajustes', active: true }]);
 
