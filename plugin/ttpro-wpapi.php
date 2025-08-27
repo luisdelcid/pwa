@@ -14,6 +14,7 @@ class TTPro_Api {
     add_action('admin_menu',         [$this,'admin_menu']);
     add_action('admin_post_ttpro_seed_demo', [$this,'handle_seed_demo']);
     add_action('admin_notices',      [$this,'admin_notices']);
+    add_action('add_meta_boxes',     [$this,'register_meta_boxes']);
   }
 
   /* ===================== CPTs ===================== */
@@ -22,7 +23,7 @@ class TTPro_Api {
       'label'        => 'Rutas',
       'public'       => false,
       'show_ui'      => true,
-      'supports'     => ['title','custom-fields'],
+      'supports'     => ['title','author','custom-fields'],
       'show_in_rest' => false,
       'menu_position'=> 25,
     ]);
@@ -31,10 +32,47 @@ class TTPro_Api {
       'label'        => 'Puntos de Venta',
       'public'       => false,
       'show_ui'      => true,
-      'supports'     => ['title','thumbnail','custom-fields'], // 👈 imagen destacada + custom fields
+      'supports'     => ['title','author','thumbnail','custom-fields'], // 👈 imagen destacada + custom fields
       'show_in_rest' => false,
       'menu_position'=> 26,
     ]);
+  }
+
+  public function register_meta_boxes() {
+    add_meta_box('tt_route_meta', 'Metadatos de Ruta', [$this,'render_route_meta'], 'tt_route');
+    add_meta_box('tt_pdv_meta',   'Metadatos de PDV',   [$this,'render_pdv_meta'],   'tt_pdv');
+  }
+
+  public function render_route_meta($post) {
+    $meta = get_post_meta($post->ID);
+    echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
+
+    $pdvs = get_posts([
+      'post_type'  => 'tt_pdv',
+      'numberposts'=> -1,
+      'meta_key'   => '_tt_pdv_route',
+      'meta_value' => $post->ID,
+    ]);
+    if ($pdvs) {
+      echo '<h4>PDVs asignados</h4><ul>';
+      foreach ($pdvs as $p) {
+        $link = get_edit_post_link($p->ID);
+        echo '<li><a href="' . esc_url($link) . '">' . esc_html(get_the_title($p)) . '</a></li>';
+      }
+      echo '</ul>';
+    }
+  }
+
+  public function render_pdv_meta($post) {
+    $meta = get_post_meta($post->ID);
+    echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
+
+    $route_id = (int) get_post_meta($post->ID, '_tt_pdv_route', true);
+    if ($route_id) {
+      $link = get_edit_post_link($route_id);
+      $title = get_the_title($route_id);
+      echo '<p><strong>Ruta asignada:</strong> <a href="' . esc_url($link) . '">' . esc_html($title) . '</a></p>';
+    }
   }
 
   /* ===================== Helpers ===================== */
