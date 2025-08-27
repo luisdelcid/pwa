@@ -2,7 +2,7 @@
 /*
 Plugin Name: TT PRO API
 Description: Endpoints para Todo Terreno PRO. CPTs de Rutas y PDVs. Devuelve PDVs del usuario y recibe respuestas (foto como imagen destacada, metadatos y usuario que llenó). Incluye seeder (UI en Herramientas).
-Version: 1.7.0
+Version: 1.8.0
 Author: TT
 */
 if (!defined('ABSPATH')) exit;
@@ -53,6 +53,8 @@ class TTPro_Api {
     $code        = (string) get_post_meta($pdv_id, '_tt_pdv_code', true);
     $address     = (string) get_post_meta($pdv_id, '_tt_pdv_address', true);
     $route_title = $route_id ? get_the_title($route_id) : '';
+    $day_id      = (string) get_post_meta($pdv_id, '_tt_pdv_day_id', true);
+    $day_title   = (string) get_post_meta($pdv_id, '_tt_pdv_day_title', true);
     return [
       'id'      => (string) $pdv_id,
       'code'    => $code ?: '',
@@ -60,6 +62,7 @@ class TTPro_Api {
       'address' => $address ?: '',
       'status'  => $status ?: 'pending', // pending | filled | synced
       'route'   => [ 'id' => (string)$route_id, 'title' => $route_title ],
+      'subroute'=> [ 'id' => (string)$day_id, 'title' => $day_title ],
     ];
   }
 
@@ -118,7 +121,7 @@ class TTPro_Api {
     register_rest_route('myapp/v1', '/ping', [
       'methods'  => 'GET',
       'permission_callback' => '__return_true',
-      'callback' => function() { return ['ok'=>true,'plugin'=>'ttpro-wpapi','version'=>'1.7.0']; }
+      'callback' => function() { return ['ok'=>true,'plugin'=>'ttpro-wpapi','version'=>'1.8.0']; }
     ]);
 
     // Catálogos (protegido)
@@ -257,6 +260,14 @@ class TTPro_Api {
   /* ===================== Seeder (núcleo + UI) ===================== */
   private function seed_generate($user_id, $routes_n, $pdvs_n) {
     $routes_created = 0; $pdvs_created = 0;
+    $days = [
+      ['id' => 'day_1', 'title' => 'Lunes'],
+      ['id' => 'day_2', 'title' => 'Martes'],
+      ['id' => 'day_3', 'title' => 'Miércoles'],
+      ['id' => 'day_4', 'title' => 'Jueves'],
+      ['id' => 'day_5', 'title' => 'Viernes'],
+    ];
+
     for ($i=1; $i<=$routes_n; $i++) {
       $r_title = 'Ruta Demo '.$i;
       $route_id = wp_insert_post([
@@ -277,16 +288,20 @@ class TTPro_Api {
         $address = 'Calle '.rand(1,99).', Zona '.rand(1,24);
         $status  = (rand(0,100) < 20) ? 'synced' : 'pending'; // ~20% ya sincronizados
 
+        $day     = $days[($j - 1) % count($days)];
+
         $ok = wp_insert_post([
           'post_type'   => 'tt_pdv',
           'post_status' => 'publish',
           'post_title'  => $title,
           'meta_input'  => [
-            '_tt_pdv_route'   => $route_id,
-            '_tt_pdv_code'    => $code,
-            '_tt_pdv_address' => $address,
-            '_tt_pdv_status'  => $status,
-            '_tt_demo'        => 1,
+            '_tt_pdv_route'     => $route_id,
+            '_tt_pdv_code'      => $code,
+            '_tt_pdv_address'   => $address,
+            '_tt_pdv_status'    => $status,
+            '_tt_pdv_day_id'    => $day['id'],
+            '_tt_pdv_day_title' => $day['title'],
+            '_tt_demo'          => 1,
           ],
         ]);
         if ($ok && !is_wp_error($ok)) $pdvs_created++;
