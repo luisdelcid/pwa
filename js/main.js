@@ -602,6 +602,10 @@
           '</div>' +
         '</div>' +
 
+        '<div class="mb-3">' +
+          '<input type="text" class="form-control" id="pdv-search" placeholder="Buscar puntos de venta" />' +
+        '</div>' +
+
         '<div class="list-group" id="pdv-list"></div>' +
       '</div>'
     );
@@ -613,36 +617,56 @@
 
     function renderRows() {
       const $list = $('#pdv-list').empty();
-      const rows = routePdvs.filter(
-        (p) => !selectedSub || String(p.subroute && p.subroute.id) === String(selectedSub)
-      );
+      const term = ($('#pdv-search').val() || '').toLowerCase();
+      const rows = routePdvs.filter((p) => {
+        if (selectedSub && String(p.subroute && p.subroute.id) !== String(selectedSub)) return false;
+        if (term) {
+          const haystack = ((p.name || '') + ' ' + (p.address || '') + ' ' + (p.code || '')).toLowerCase();
+          if (!haystack.includes(term)) return false;
+        }
+        return true;
+      });
 
       if (!rows.length) {
         $list.append('<div class="list-group-item small text-muted">No hay PDVs para el filtro seleccionado.</div>');
         return;
       }
 
+      const groups = new Map();
       rows.forEach((p) => {
-        const $i = $('<div/>')
-          .addClass('list-group-item list-group-item-action')
-          .html(
-            '<div class="d-flex w-100 justify-content-between align-items-start">' +
-              '<div>' +
-                '<div class="font-weight-bold">' + (p.code || '') + ' — ' + p.name + '</div>' +
-                '<div class="small text-muted">' + (p.address || '') + '</div>' +
-              '</div>' +
-              '<div>' + statusChip(p.status || 'pending') + '</div>' +
-            '</div>' +
-            '<div class="mt-2 d-flex">' +
-              '<a href="#/form?pdvId=' + encodeURIComponent(p.id) + '" class="btn btn-sm btn-primary">Abrir</a>' +
-            '</div>'
-          );
-
-        $list.append($i);
+        const id = String(p.subroute && p.subroute.id ? p.subroute.id : '');
+        const title = p.subroute && p.subroute.title ? p.subroute.title : '';
+        if (!groups.has(id)) groups.set(id, { title, items: [] });
+        groups.get(id).items.push(p);
       });
+
+      Array.from(groups.values())
+        .sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+        .forEach((g) => {
+          $list.append('<div class="list-group-item active">' + g.title + '</div>');
+          g.items.forEach((p) => {
+            const $i = $('<div/>')
+              .addClass('list-group-item list-group-item-action')
+              .html(
+                '<div class="d-flex w-100 justify-content-between align-items-start">' +
+                  '<div>' +
+                    '<div class="font-weight-bold">' + (p.code || '') + ' — ' + p.name + '</div>' +
+                    '<div class="small text-muted">' + (p.address || '') + '</div>' +
+                  '</div>' +
+                  '<div>' + statusChip(p.status || 'pending') + '</div>' +
+                '</div>' +
+                '<div class="mt-2 d-flex">' +
+                  '<a href="#/form?pdvId=' + encodeURIComponent(p.id) + '" class="btn btn-sm btn-primary">Abrir</a>' +
+                '</div>'
+              );
+
+            $list.append($i);
+          });
+        });
     }
 
     renderRows();
+    $('#pdv-search').on('input', renderRows);
 
     $sel.on('change', function () {
       const v = $(this).val() || '';
