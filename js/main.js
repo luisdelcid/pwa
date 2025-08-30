@@ -322,6 +322,15 @@
     return !!localStorage.getItem('jwt') || localStorage.getItem('sessionActive') === '1';
   }
 
+  const ICON_LOGIN = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48IS0tIUZvbnQgQXdlc29tZSBQcm8gNi43LjIgYnkgQGZvbnRhd2Vzb21lIC0gaHR0cHM6Ly9mb250YXdlc29tZS5jb20gTGljZW5zZSAtIGh0dHBzOi8vZm9udGF3ZXNvbWUuY29tL2xpY2Vuc2UgKENvbW1lcmNpYWwgTGljZW5zZSkgQ29weXJpZ2h0IDIwMjUgRm9udGljb25zLCBJbmMuLS0+PHBhdGggZD0iTTMxOS4yIDI1Ny44Yy41LS41IC44LTEuMSAuOC0xLjhzLS4zLTEuNC0uOC0xLjhMMTg3LjMgMTI5LjhjLTEuMi0xLjItMi45LTEuOC00LjYtMS44Yy0zLjcgMC02LjcgMy02LjcgNi43bDAgNTcuM2MwIDguOC03LjIgMTYtMTYgMTZMNDAgMjA4Yy00LjQgMC04IDMuNi04IDhsMCA4MGMwIDQuNCAzLjYgOCA4IDhsMTIwIDBjOC44IDAgMTYgNy4yIDE2IDE2bDAgNTcuM2MwIDMuNyAzIDYuNyA2LjcgNi43YzEuNyAwIDMuMy0uNiA0LjYtMS44TDMxOS4yIDI1Ny44ek0zNTIgMjU2YzAgOS41LTMuOSAxOC42LTEwLjggMjUuMUwyMDkuMiA0MDUuNWMtNy4yIDYuOC0xNi43IDEwLjUtMjYuNSAxMC41Yy0yMS40IDAtMzguNy0xNy4zLTM4LjctMzguN2wwLTQxLjNMNDAgMzM2Yy0yMi4xIDAtNDAtMTcuOS00MC00MGwwLTgwYzAtMjIuMSAxNy45LTQwIDQwLTQwbDEwNCAwIDAtNDEuM2MwLTIxLjQgMTcuMy0zOC43IDM4LjctMzguN2M5LjkgMCAxOS4zIDMuOCAyNi41IDEwLjVMMzQxLjIgMjMwLjljNi45IDYuNSAxMC44IDE1LjYgMTAuOCAyNS4xek0zMzYgNDQ4bDk2IDBjMjYuNSAwIDQ4LTIxLjUgNDgtNDhsMC0yODhjMC0yNi41LTIxLjUtNDgtNDgtNDhsLTk2IDBjLTguOCAwLTE2LTcuMi0xNi0xNnM3LjItMTYgMTYtMTZsOTYgMGM0NC4yIDAgODAgMzUuOCA4MCA4MGwwIDI4OGMwIDQ0LjItMzUuOCA4MC04MCA4MGwtOTYgMGMtOC44IDAtMTYtNy4yLTE2LTE2czcuMi0xNiAxNi0xNnoiLz48L3N2Zz4=';
+  const ICON_LOGOUT = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48IS0tIUZvbnQgQXdlc29tZSBQcm8gNi43LjIgYnkgQGZvbnRhd2Vzb21lIC0gaHR0cHM6Ly9mb250YXdlc29tZS5jb20gTGljZW5zZSAtIGh0dHBzOi8vZm9udGF3ZXNvbWUuY29tL2xpY2Vuc2UgKENvbW1lcmNpYWwgTGljZW5zZSkgQ29weXJpZ2h0IDIwMjUgRm9udGljb25zLCBJbmMuLS0+PHBhdGggZD0iTTQ3OS4yIDI1NC4yYy41IC41IC44IDEuMSAuOCAxLjhzLS4zIDEuNC0uOCAxLjhMMzQ3LjMgMzgyLjJjLTEuMiAxLjItMi45IDEuOC00LjYgMS44Yy0zLjcgMC02LjctMy02LjctNi43bDAtNTcuM2MwLTguOC03LjItMTYtMTYtMTZsLTEyMCAwYy00LjQgMC04LTMuNi04LThsMC04MGMwLTQuNCAzLjYtOCA4LThsMTIwIDBjOC44IDAgMTYtNy4yIDE2LTE2bDAtNTcuM2MwLTMuNyAzLTYuNyA2LjctNi43YzEuNyAwIDMuMyAuNyA0LjYgMS44TDQ3OS4yIDI1NC4yek01MTIgMjU2YzAtOS41LTMuOS0xOC42LTEwLjgtMjUuMUwzNjkuMiAxMDYuNUMzNjIgOTkuOCAzNTIuNSA5NiAzNDIuNyA5NmMtMjEuNCAwLTM4LjcgMTcuMy0zOC43IDM4LjdsMCA0MS4zLTEwNCAwYy0yMi4xIDAtNDAgMTcuOS00MCA0MGwwIDgwYzAgMjIuMSAxNy45IDQwIDQwIDQwbDEwNCAwIDAgNDEuM2MwIDIxLjQgMTcuMyAzOC43IDM4LjcgMzguN2M5LjkgMCAxOS40LTMuOCAyNi41LTEwLjVMNTAxLjIgMjgxLjFjNi45LTYuNSAxMC44LTE1LjYgMTAuOC0yNS4xek0xNzYgNjRjOC44IDAgMTYtNy4yIDE2LTE2cy03LjItMTYtMTYtMTZMODAgMzJDMzUuOCAzMiAwIDY3LjggMCAxMTJMMCA0MDBjMCA0NC4yIDM1LjggODAgODAgODBsOTYgMGM4LjggMCAxNi03LjIgMTYtMTZzLTcuMi0xNi0xNi0xNmwtOTYgMGMtMjYuNSAwLTQ4LTIxLjUtNDgtNDhsMC0yODhjMC0yNi41IDIxLjUtNDggNDgtNDhsOTYgMHoiLz48L3N2Zz4=';
+
+  function updateAuthIcon() {
+    const logged = hasSession();
+    $('#icon-auth').attr('src', logged ? ICON_LOGOUT : ICON_LOGIN);
+    $('#btn-auth').attr('title', logged ? 'Cerrar sesión' : 'Iniciar sesión');
+  }
+
   /**
    * En rutas protegidas, redirige al login si no hay sesión.
    */
@@ -447,6 +456,7 @@
 
         await bootstrapData();
         await loadCached();
+        updateAuthIcon();
 
         location.hash = '#/routes';
       } catch (e) {
@@ -1343,15 +1353,21 @@
 
   $(document).on('click', '#btn-settings', function () { location.hash = '#/settings'; });
 
-  $(document).on('click', '#btn-logout', function () {
-    localStorage.removeItem('jwt');
-    localStorage.removeItem('sessionActive');
+  $(document).on('click', '#btn-auth', function () {
+    if (hasSession()) {
+      localStorage.removeItem('jwt');
+      localStorage.removeItem('sessionActive');
+    }
     location.hash = '#/';
+    updateAuthIcon();
   });
 
   $(document).on('click', '#btn-sync-footer', function () { location.hash = '#/sync'; });
 
   // Estado inicial de breadcrumbs en DOM ready
-  $(function () { setBreadcrumbs([{ label: 'Inicio', href: '#/', active: true }]); });
+  $(function () {
+    setBreadcrumbs([{ label: 'Inicio', href: '#/', active: true }]);
+    updateAuthIcon();
+  });
 
 })(jQuery);
