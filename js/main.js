@@ -923,13 +923,22 @@
     const routeId = pdv && pdv.route ? pdv.route.id : '';
     const routeTitle = pdv && pdv.route ? (pdv.route.title || ('Ruta ' + pdv.route.id)) : '';
 
-    let answers = {}; // Respuestas acumuladas por id de campo
-    let step = 0;     // Paso actual (0..N)
+    let answers = {};
+    let step = 0;
 
     const cam = buildCameraUI();
-    let photoBlob = null; // Captura resultante
+    let photoBlob = null;
 
-    const total = fields.length + 2; // campos + (foto) + (geo)
+    function shouldShowField(f) {
+      if (!f.show_if) return true;
+      const val = answers[f.show_if.id];
+      const exp = f.show_if.value;
+      return Array.isArray(exp) ? exp.includes(val) : val === exp;
+    }
+
+    function visibleFields() {
+      return fields.filter(shouldShowField);
+    }
 
     setBreadcrumbs([
       { label: 'Rutas', href: '#/routes' },
@@ -941,35 +950,32 @@
       '<div class="container py-3">' +
         '<div class="d-flex align-items-center mb-2">' +
           '<button class="btn btn-outline-secondary btn-sm" id="btn-back">← Volver</button>' +
-          '<div class="ml-auto"><span class="badge badge-primary" id="step-label">1/' + total + '</span></div>' +
+          '<div class="ml-auto"><span class="badge badge-primary" id="step-label">1/1</span></div>' +
         '</div>' +
-
         '<div class="progress thin mb-3"><div class="progress-bar" id="progressbar" style="width:0%"></div></div>' +
         '<div id="form-body"></div>' +
-
         '<div class="sticky-actions mt-3">' +
           '<button class="btn btn-primary btn-block" id="btn-next">Siguiente</button>' +
         '</div>' +
       '</div>'
     );
 
-    // Actualiza UI de progreso, texto de botón, etc.
-    function updateStepUI() {
-      const pct = Math.round((step / (total - 1)) * 100);
+    function updateStepUI(total, field) {
+      const pct = total > 1 ? Math.round((step / (total - 1)) * 100) : 100;
       $('#progressbar').css('width', pct + '%');
       $('#step-label').text((step + 1) + '/' + total);
-
-      const onCameraStep = (step === fields.length);
       $('#btn-next').text(step === (total - 1) ? 'Finalizar' : 'Siguiente');
-      $('#btn-next').prop('disabled', onCameraStep && !photoBlob);
+      if (field && field.type === 'photo') {
+        $('#btn-next').prop('disabled', !photoBlob);
+      } else {
+        $('#btn-next').prop('disabled', false);
+      }
     }
 
-    // Render de un campo según tipo
     function renderField(f, val, onChange) {
       if (f.type === 'radio' || f.type === 'checkbox') {
         return renderFieldCard(f, val, onChange);
       }
-
       if (f.type === 'textarea') {
         const $ta = $('<textarea class="form-control" rows="5"></textarea>').val(val || '');
         $ta.on('input', () => onChange($ta.val()));
@@ -977,8 +983,6 @@
           .append('<div class="form-step-title mb-2">' + f.label + '</div>')
           .append($ta);
       }
-
-      // Input de texto por defecto
       const $in = $('<input type="text" class="form-control">').val(val || '');
       $in.on('input', () => onChange($in.val()));
       return $('<div class="mb-3"></div>')
@@ -986,8 +990,7 @@
         .append($in);
     }
 
-    // UI mínima para obtención de geolocalización
-    function geoUI() {
+    function geoUI(onChange) {
       const $w = $('<div class="mb-3"></div>');
       const $b = $('<button class="btn btn-outline-primary btn-block" type="button">Obtener ubicación</button>');
       const $o = $('<div class="small text-muted mt-2">Aún sin datos</div>');
@@ -999,6 +1002,7 @@
             const lng = pos.coords.longitude.toFixed(6);
             const acc = Math.round(pos.coords.accuracy);
             $o.text('Lat: ' + lat + ', Lng: ' + lng + ', Precisión: ' + acc + ' m');
+            onChange({ lat, lng, accuracy: acc });
           },
           (err) => {
             $o.text('Error: ' + (err.message || err));
@@ -1011,34 +1015,33 @@
       return $w;
     }
 
-    // Monta el contenido de cada paso en #form-body
     async function mount() {
+      const seq = visibleFields();
+      if (seq.length === 0) return;
+      if (step >= seq.length) step = seq.length - 1;
+
+      const f = seq[step];
       const $b = $('#form-body').empty();
 
-      if (step < fields.length) {
-        try { await cam.stop(); } catch (e) {}
-
-        const f = fields[step];
-        const val = answers[f.id];
-
-        $b.append(
-          renderField(f, val, (v) => { answers[f.id] = v; })
-        );
-      } else if (step === fields.length) {
+      if (f.type === 'photo') {
         $b.append(cam.$root);
         cam.oncapture(function (blob) {
           photoBlob = blob;
-          updateStepUI();
+          updateStepUI(seq.length, f);
         });
+      } else if (f.type === 'geo') {
+        try { await cam.stop(); } catch (e) {}
+        $b.append('<div class="form-step-title mb-2">' + f.label + '</div>')
+          .append(geoUI((v) => { answers[f.id] = v; }));
       } else {
         try { await cam.stop(); } catch (e) {}
-        $b.append('<div class="form-step-title mb-2">Ubicación</div>').append(geoUI());
+        const val = answers[f.id];
+        $b.append(renderField(f, val, (v) => { answers[f.id] = v; }));
       }
 
-      updateStepUI();
+      updateStepUI(seq.length, f);
     }
 
-    // Al finalizar: guarda en responses + encola para sync y navega a PDVs
     async function finalize() {
       const payload = {
         pdvId: pdvId,
@@ -1069,14 +1072,15 @@
       location.hash = '#/pdvs?routeId=' + encodeURIComponent(routeId);
     }
 
-    // Siguiente / Finalizar
     $('#app-main').off('click', '#btn-next').on('click', '#btn-next', async function () {
-      if (step === fields.length && !photoBlob) {
+      const seq = visibleFields();
+      const f = seq[step];
+      if (f.type === 'photo' && !photoBlob) {
         alert('Primero captura una foto.');
         return;
       }
 
-      if (step === (total - 1)) {
+      if (step === (seq.length - 1)) {
         await finalize();
         return;
       }
@@ -1085,7 +1089,6 @@
       mount();
     });
 
-    // Volver
     $('#app-main').off('click', '#btn-back').on('click', '#btn-back', async function () {
       if (step > 0) {
         step--;
@@ -1096,7 +1099,6 @@
       }
     });
 
-    // Render inicial
     mount();
   }
 
