@@ -15,7 +15,7 @@ class TTPro_Api {
     add_action('admin_post_ttpro_seed_demo', [$this,'handle_seed_demo']);
     add_action('admin_notices',      [$this,'admin_notices']);
     add_action('add_meta_boxes',     [$this,'register_meta_boxes']);
-    add_filter('mb_relationships',   [$this,'register_relationships']);
+    add_action('mb_relationships_init', [$this,'register_relationships']);
   }
 
   /* ===================== CPTs ===================== */
@@ -44,8 +44,9 @@ class TTPro_Api {
     add_meta_box('tt_pdv_meta',   'Metadatos de PDV',   [$this,'render_pdv_meta'],   'tt_pdv');
   }
 
-  public function register_relationships($rels) {
-    $rels[] = [
+  public function register_relationships() {
+    MB_Relationships_API::register([
+
       'id'   => 'route_to_user',
       'from' => [
         'object_type' => 'post',
@@ -57,9 +58,10 @@ class TTPro_Api {
         'meta_box'    => [ 'title' => 'Rutas asignadas' ],
       ],
       'reciprocal' => true,
-    ];
+    ]);
 
-    $rels[] = [
+    MB_Relationships_API::register([
+
       'id'   => 'route_to_pdv',
       'from' => [
         'object_type' => 'post',
@@ -71,15 +73,15 @@ class TTPro_Api {
         'post_type'   => 'tt_pdv',
         'meta_box'    => [ 'title' => 'Ruta asignada' ],
       ],
-    ];
+    ]);
 
-    return $rels;
   }
 
   public function render_route_meta($post) {
     $meta = get_post_meta($post->ID);
     echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
-    $pdv_ids = mb_relationships()->get([
+    $pdv_ids = MB_Relationships_API::get_connected([
+
       'id'     => 'route_to_pdv',
       'from'   => $post->ID,
       'fields' => 'ids',
@@ -105,7 +107,8 @@ class TTPro_Api {
   public function render_pdv_meta($post) {
     $meta = get_post_meta($post->ID);
     echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
-    $route_ids = mb_relationships()->get([
+    $route_ids = MB_Relationships_API::get_connected([
+
       'id'     => 'route_to_pdv',
       'to'     => $post->ID,
       'fields' => 'ids',
@@ -124,7 +127,8 @@ class TTPro_Api {
   }
 
   private function route_assigned_to_user($route_id, $user_id) {
-    $rels = mb_relationships()->get([
+    $rels = MB_Relationships_API::get_connected([
+
       'id'     => 'route_to_user',
       'from'   => $route_id,
       'to'     => $user_id,
@@ -134,7 +138,8 @@ class TTPro_Api {
   }
 
   private function pdv_payload($pdv_id) {
-    $route_ids   = mb_relationships()->get([
+    $route_ids   = MB_Relationships_API::get_connected([
+
       'id'     => 'route_to_pdv',
       'to'     => $pdv_id,
       'fields' => 'ids',
@@ -311,7 +316,8 @@ class TTPro_Api {
           if (!$user_id) return new WP_Error('tt_no_user','No autenticado', ['status'=>401]);
 
           // Rutas asignadas al usuario
-          $route_ids = mb_relationships()->get([
+          $route_ids = MB_Relationships_API::get_connected([
+
             'id'     => 'route_to_user',
             'to'     => $user_id,
             'fields' => 'ids',
@@ -321,7 +327,8 @@ class TTPro_Api {
           // PDVs en esas rutas
           $pdv_ids = [];
           foreach ($route_ids as $rid) {
-            $ids = mb_relationships()->get([
+            $ids = MB_Relationships_API::get_connected([
+
               'id'     => 'route_to_pdv',
               'from'   => $rid,
               'fields' => 'ids',
@@ -447,7 +454,8 @@ class TTPro_Api {
         ],
       ]);
       if (!$route_id || is_wp_error($route_id)) continue;
-      mb_relationships()->add('route_to_user', $route_id, $user_id);
+      MB_Relationships_API::add('route_to_user', $route_id, $user_id);
+
       $routes_created++;
 
       for ($j=1; $j<=$pdvs_n; $j++) {
@@ -472,7 +480,8 @@ class TTPro_Api {
           ],
         ]);
         if ($ok && !is_wp_error($ok)) {
-          mb_relationships()->add('route_to_pdv', $route_id, $ok);
+          MB_Relationships_API::add('route_to_pdv', $route_id, $ok);
+
           $pdvs_created++;
         }
       }
