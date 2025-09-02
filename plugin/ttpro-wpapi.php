@@ -2,7 +2,7 @@
 /*
 Plugin Name: TT PRO API
 Description: Endpoints para Todo Terreno PRO. CPTs de Rutas y PDVs. Devuelve PDVs del usuario y recibe respuestas (foto como imagen destacada, metadatos y usuario que llenó). Incluye seeder (UI en Herramientas).
-Version: 1.9.0
+Version: 1.8.0
 Author: TT
 */
 if (!defined('ABSPATH')) exit;
@@ -15,8 +15,6 @@ class TTPro_Api {
     add_action('admin_post_ttpro_seed_demo', [$this,'handle_seed_demo']);
     add_action('admin_notices',      [$this,'admin_notices']);
     add_action('add_meta_boxes',     [$this,'register_meta_boxes']);
-    add_action('save_post_tt_route', [$this,'save_route_meta']);
-    add_action('save_post_tt_pdv',   [$this,'save_pdv_meta']);
   }
 
   /* ===================== CPTs ===================== */
@@ -28,8 +26,6 @@ class TTPro_Api {
       'supports'     => ['title','author','custom-fields'],
       'show_in_rest' => false,
       'menu_position'=> 25,
-      'hierarchical' => true,
-      'rewrite'      => ['slug' => 'ruta', 'with_front' => false],
     ]);
 
     register_post_type('tt_pdv', [
@@ -48,104 +44,34 @@ class TTPro_Api {
   }
 
   public function render_route_meta($post) {
-    $assigned = (int) get_post_meta($post->ID, '_tt_route_user', true);
-    wp_nonce_field('tt_route_meta', 'tt_route_meta_nonce');
-
-    $users = get_users(['number'=>500,'orderby'=>'display_name','order'=>'ASC']);
-    echo '<p><label for="tt_route_user">Usuario asignado</label><br/><select name="tt_route_user" id="tt_route_user">';
-    echo '<option value="">— Ninguno —</option>';
-    foreach ($users as $u) {
-      $sel = selected($assigned, $u->ID, false);
-      $label = $u->display_name . ' (' . $u->user_login . ')';
-      echo '<option value="' . esc_attr($u->ID) . '" ' . $sel . '>' . esc_html($label) . '</option>';
-    }
-    echo '</select></p>';
-
     $meta = get_post_meta($post->ID);
     echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
 
-    $subroutes = get_posts([
-      'post_type'  => 'tt_route',
+    $pdvs = get_posts([
+      'post_type'  => 'tt_pdv',
       'numberposts'=> -1,
-      'post_parent'=> $post->ID,
-      'post_status'=> 'any'
+      'meta_key'   => '_tt_pdv_route',
+      'meta_value' => $post->ID,
     ]);
-    if ($subroutes) {
-      echo '<h4>Sub-rutas</h4><ul>';
-      foreach ($subroutes as $sr) {
-        $pdvs = get_posts([
-          'post_type'   => 'tt_pdv',
-          'numberposts' => -1,
-          'post_status' => 'any',
-          'meta_key'    => '_tt_pdv_subroute',
-          'meta_value'  => $sr->ID,
-        ]);
-        $link  = get_edit_post_link($sr->ID);
-        $count = is_array($pdvs) ? count($pdvs) : 0;
-        echo '<li><a href="' . esc_url($link) . '">' . esc_html(get_the_title($sr)) . '</a> (' . intval($count) . ' PDVs)</li>';
+    if ($pdvs) {
+      echo '<h4>PDVs asignados</h4><ul>';
+      foreach ($pdvs as $p) {
+        $link = get_edit_post_link($p->ID);
+        echo '<li><a href="' . esc_url($link) . '">' . esc_html(get_the_title($p)) . '</a></li>';
       }
       echo '</ul>';
     }
   }
 
   public function render_pdv_meta($post) {
-    $current = (int) get_post_meta($post->ID, '_tt_pdv_subroute', true);
-    wp_nonce_field('tt_pdv_meta', 'tt_pdv_meta_nonce');
-
-    $subroutes = get_posts([
-      'post_type'  => 'tt_route',
-      'numberposts'=> -1,
-      'post_parent__not_in' => [0],
-      'post_status'=> 'any'
-    ]);
-    echo '<p><label for="tt_pdv_subroute">Sub-ruta</label><br/><select name="tt_pdv_subroute" id="tt_pdv_subroute">';
-    echo '<option value="">— Ninguna —</option>';
-    foreach ($subroutes as $sr) {
-      $route_id = wp_get_post_parent_id($sr->ID);
-      $label = get_the_title($sr->ID);
-      if ($route_id) {
-        $label = get_the_title($route_id) . ' / ' . $label;
-      }
-      $sel = selected($current, $sr->ID, false);
-      echo '<option value="' . esc_attr($sr->ID) . '" ' . $sel . '>' . esc_html($label) . '</option>';
-    }
-    echo '</select></p>';
-
     $meta = get_post_meta($post->ID);
     echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
 
-    if ($current) {
-      $route_id = wp_get_post_parent_id($current);
-      $link     = get_edit_post_link($current);
-      echo '<p><strong>Sub-ruta:</strong> <a href="' . esc_url($link) . '">' . esc_html(get_the_title($current)) . '</a></p>';
-      if ($route_id) {
-        $linkr = get_edit_post_link($route_id);
-        echo '<p><strong>Ruta:</strong> <a href="' . esc_url($linkr) . '">' . esc_html(get_the_title($route_id)) . '</a></p>';
-      }
-    }
-  }
-
-  public function save_route_meta($post_id) {
-    if (!isset($_POST['tt_route_meta_nonce']) || !wp_verify_nonce($_POST['tt_route_meta_nonce'], 'tt_route_meta')) return;
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
-    if (!current_user_can('edit_post', $post_id)) return;
-    $uid = isset($_POST['tt_route_user']) ? intval($_POST['tt_route_user']) : 0;
-    if ($uid > 0) {
-      update_post_meta($post_id, '_tt_route_user', $uid);
-    } else {
-      delete_post_meta($post_id, '_tt_route_user');
-    }
-  }
-
-  public function save_pdv_meta($post_id) {
-    if (!isset($_POST['tt_pdv_meta_nonce']) || !wp_verify_nonce($_POST['tt_pdv_meta_nonce'], 'tt_pdv_meta')) return;
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
-    if (!current_user_can('edit_post', $post_id)) return;
-    $sub = isset($_POST['tt_pdv_subroute']) ? intval($_POST['tt_pdv_subroute']) : 0;
-    if ($sub > 0) {
-      update_post_meta($post_id, '_tt_pdv_subroute', $sub);
-    } else {
-      delete_post_meta($post_id, '_tt_pdv_subroute');
+    $route_id = (int) get_post_meta($post->ID, '_tt_pdv_route', true);
+    if ($route_id) {
+      $link = get_edit_post_link($route_id);
+      $title = get_the_title($route_id);
+      echo '<p><strong>Ruta asignada:</strong> <a href="' . esc_url($link) . '">' . esc_html($title) . '</a></p>';
     }
   }
 
@@ -159,12 +85,14 @@ class TTPro_Api {
     return $assigned === (int)$user_id;
   }
 
-  private function pdv_payload($pdv_id, $route_id = 0, $subroute_id = 0) {
+  private function pdv_payload($pdv_id) {
+    $route_id    = (int) get_post_meta($pdv_id, '_tt_pdv_route', true);
     $status      = (string) get_post_meta($pdv_id, '_tt_pdv_status', true);
     $code        = (string) get_post_meta($pdv_id, '_tt_pdv_code', true);
     $address     = (string) get_post_meta($pdv_id, '_tt_pdv_address', true);
-    $route_title    = $route_id ? get_the_title($route_id) : '';
-    $subroute_title = $subroute_id ? get_the_title($subroute_id) : '';
+    $route_title = $route_id ? get_the_title($route_id) : '';
+    $day_id      = (string) get_post_meta($pdv_id, '_tt_pdv_day_id', true);
+    $day_title   = (string) get_post_meta($pdv_id, '_tt_pdv_day_title', true);
     return [
       'id'      => (string) $pdv_id,
       'code'    => $code ?: '',
@@ -172,7 +100,7 @@ class TTPro_Api {
       'address' => $address ?: '',
       'status'  => $status ?: 'pending', // pending | filled | synced
       'route'   => [ 'id' => (string)$route_id, 'title' => $route_title ],
-      'subroute'=> [ 'id' => (string)$subroute_id, 'title' => $subroute_title ],
+      'subroute'=> [ 'id' => (string)$day_id, 'title' => $day_title ],
     ];
   }
 
@@ -231,7 +159,7 @@ class TTPro_Api {
     register_rest_route('myapp/v1', '/ping', [
       'methods'  => 'GET',
       'permission_callback' => '__return_true',
-      'callback' => function() { return ['ok'=>true,'plugin'=>'ttpro-wpapi','version'=>'1.8.1']; }
+      'callback' => function() { return ['ok'=>true,'plugin'=>'ttpro-wpapi','version'=>'1.8.0']; }
     ]);
 
     // Catálogos (protegido)
@@ -329,52 +257,22 @@ class TTPro_Api {
           $user_id = $this->current_user_id_jwt();
           if (!$user_id) return new WP_Error('tt_no_user','No autenticado', ['status'=>401]);
 
-          // Rutas asignadas al usuario mediante metadatos
-          $routes = get_posts([
-            'post_type'   => 'tt_route',
-            'numberposts' => -1,
-            'post_parent' => 0,
-            'post_status' => 'any',
-            'meta_key'    => '_tt_route_user',
-            'meta_value'  => $user_id,
+          // Rutas asignadas al usuario
+          $routes = get_posts([ 'post_type'=>'tt_route','numberposts'=>-1,'post_status'=>'any' ]);
+          $allowed_route_ids = [];
+          foreach ($routes as $r) {
+            if ($this->route_assigned_to_user($r->ID, $user_id)) $allowed_route_ids[] = $r->ID;
+          }
+          if (empty($allowed_route_ids)) return [];
+
+          // PDVs en esas rutas
+          $pdvs = get_posts([
+            'post_type'=>'tt_pdv','numberposts'=>-1,'post_status'=>'any',
+            'meta_query'=>[[ 'key'=>'_tt_pdv_route','value'=>$allowed_route_ids,'compare'=>'IN' ]]
           ]);
-          if (empty($routes)) return [];
 
           $out = [];
-          foreach ($routes as $r) {
-            $route_id = $r->ID;
-            $route_item = [
-              'id' => (string)$route_id,
-              'title' => get_the_title($route_id),
-              'subroutes' => []
-            ];
-            $subroutes = get_posts([
-              'post_type'   => 'tt_route',
-              'numberposts' => -1,
-              'post_parent' => $route_id,
-              'post_status' => 'any',
-            ]);
-            foreach ($subroutes as $sr) {
-              $sub_id = $sr->ID;
-              $sub_item = [
-                'id' => (string)$sub_id,
-                'title' => get_the_title($sub_id),
-                'pdvs' => []
-              ];
-              $pdvs = get_posts([
-                'post_type'   => 'tt_pdv',
-                'numberposts' => -1,
-                'post_status' => 'any',
-                'meta_key'    => '_tt_pdv_subroute',
-                'meta_value'  => $sub_id,
-              ]);
-              foreach ($pdvs as $p) {
-                $sub_item['pdvs'][] = $this->pdv_payload($p->ID, $route_id, $sub_id);
-              }
-              $route_item['subroutes'][] = $sub_item;
-            }
-            $out[] = $route_item;
-          }
+          foreach ($pdvs as $p) $out[] = $this->pdv_payload($p->ID);
           return $out;
         }
       ]);
@@ -463,58 +361,51 @@ class TTPro_Api {
   /* ===================== Seeder (núcleo + UI) ===================== */
   private function seed_generate($user_id, $routes_n, $pdvs_n) {
     $routes_created = 0; $pdvs_created = 0;
-    $sub_names = ['UN01','UN02','UN03','UN04','UN05'];
+    $days = [
+      ['id' => 'day_1', 'title' => 'Lunes'],
+      ['id' => 'day_2', 'title' => 'Martes'],
+      ['id' => 'day_3', 'title' => 'Miércoles'],
+      ['id' => 'day_4', 'title' => 'Jueves'],
+      ['id' => 'day_5', 'title' => 'Viernes'],
+    ];
 
     for ($i=1; $i<=$routes_n; $i++) {
-      $r_title = sprintf('VG%02d', $i);
+      $r_title = 'Ruta Demo '.$i;
       $route_id = wp_insert_post([
         'post_type'   => 'tt_route',
         'post_status' => 'publish',
         'post_title'  => $r_title,
-        'meta_input'  => [ '_tt_demo' => 1, '_tt_route_user' => $user_id ],
+        'meta_input'  => [
+          '_tt_route_user' => $user_id,
+          '_tt_demo'       => 1,
+        ],
       ]);
       if (!$route_id || is_wp_error($route_id)) continue;
       $routes_created++;
 
-      $subroutes = [];
-      foreach ($sub_names as $sub) {
-        $sr_title = $r_title . ' - ' . $sub;
-        $sr_id = wp_insert_post([
-          'post_type'   => 'tt_route',
+      for ($j=1; $j<=$pdvs_n; $j++) {
+        $code    = sprintf('%02d-%03d', $i, $j);
+        $title   = 'PDV '.$code;
+        $address = 'Calle '.rand(1,99).', Zona '.rand(1,24);
+        $status  = (rand(0,100) < 20) ? 'synced' : 'pending'; // ~20% ya sincronizados
+
+        $day     = $days[($j - 1) % count($days)];
+
+        $ok = wp_insert_post([
+          'post_type'   => 'tt_pdv',
           'post_status' => 'publish',
-          'post_title'  => $sr_title,
-          'post_parent' => $route_id,
-          'meta_input'  => [ '_tt_demo' => 1 ],
+          'post_title'  => $title,
+          'meta_input'  => [
+            '_tt_pdv_route'     => $route_id,
+            '_tt_pdv_code'      => $code,
+            '_tt_pdv_address'   => $address,
+            '_tt_pdv_status'    => $status,
+            '_tt_pdv_day_id'    => $day['id'],
+            '_tt_pdv_day_title' => $day['title'],
+            '_tt_demo'          => 1,
+          ],
         ]);
-        if ($sr_id && !is_wp_error($sr_id)) $subroutes[] = $sr_id;
-      }
-      if (empty($subroutes)) continue;
-
-      $per_sub = max(1, intval($pdvs_n / count($subroutes)));
-      $counter = 1;
-      foreach ($subroutes as $sr_id) {
-        for ($j=1; $j<=$per_sub; $j++) {
-          $code    = sprintf('%02d-%03d', $i, $counter++);
-          $title   = 'PDV ' . $code;
-          $address = 'Calle ' . rand(1,99) . ', Zona ' . rand(1,24);
-          $status  = (rand(0,100) < 20) ? 'synced' : 'pending';
-
-          $pdv_id = wp_insert_post([
-            'post_type'   => 'tt_pdv',
-            'post_status' => 'publish',
-            'post_title'  => $title,
-            'meta_input'  => [
-              '_tt_pdv_code'     => $code,
-              '_tt_pdv_address'  => $address,
-              '_tt_pdv_status'   => $status,
-              '_tt_pdv_subroute' => $sr_id,
-              '_tt_demo'         => 1,
-            ],
-          ]);
-          if ($pdv_id && !is_wp_error($pdv_id)) {
-            $pdvs_created++;
-          }
-        }
+        if ($ok && !is_wp_error($ok)) $pdvs_created++;
       }
     }
     return ['routes_created'=>$routes_created, 'pdvs_per_route'=>$pdvs_n, 'pdvs_created'=>$pdvs_created, 'user_id'=>$user_id];
