@@ -10,9 +10,6 @@ if (!defined('ABSPATH')) exit;
 class TTPro_Api {
   public function __construct() {
     add_action('init',               [$this,'register_cpts']);
-    if (function_exists('mb_relationships')) {
-      add_action('mb_relationships_init', [$this,'register_relationships']);
-    }
     add_action('rest_api_init',      [$this,'register_routes']);
     add_action('admin_menu',         [$this,'admin_menu']);
     add_action('admin_post_ttpro_seed_demo', [$this,'handle_seed_demo']);
@@ -48,38 +45,6 @@ class TTPro_Api {
     add_meta_box('tt_pdv_meta',   'Metadatos de PDV',   [$this,'render_pdv_meta'],   'tt_pdv');
   }
 
-  public function register_relationships() {
-    if (!class_exists('MB_Relationships_API')) return;
-
-    MB_Relationships_API::register([
-      'id'   => 'route_user',
-      'from' => [
-        'object_type' => 'post',
-        'post_type'   => 'tt_route',
-        'meta_box'    => [ 'title' => 'Vendedores' ],
-      ],
-      'to'   => [
-        'object_type' => 'user',
-        'meta_box'    => [ 'title' => 'Rutas asignadas' ],
-      ],
-      'reciprocal' => true,
-    ]);
-
-    MB_Relationships_API::register([
-      'id'   => 'subroute_pdv',
-      'from' => [
-        'object_type' => 'post',
-        'post_type'   => 'tt_route',
-        'meta_box'    => [ 'title' => 'Puntos de venta' ],
-      ],
-      'to'   => [
-        'object_type' => 'post',
-        'post_type'   => 'tt_pdv',
-        'meta_box'    => [ 'title' => 'Sub-ruta' ],
-      ],
-    ]);
-  }
-
   public function render_route_meta($post) {
     $meta = get_post_meta($post->ID);
     echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
@@ -93,15 +58,14 @@ class TTPro_Api {
     if ($subroutes) {
       echo '<h4>Sub-rutas</h4><ul>';
       foreach ($subroutes as $sr) {
-        $pdvs = [];
-        if (class_exists('MB_Relationships_API')) {
-          $pdvs = MB_Relationships_API::get_connected([
-            'id' => $sr->ID,
-            'relationship' => 'subroute_pdv',
-            'direction' => 'from',
-          ]);
-        }
-        $link = get_edit_post_link($sr->ID);
+        $pdvs = get_posts([
+          'post_type'   => 'tt_pdv',
+          'numberposts' => -1,
+          'post_status' => 'any',
+          'meta_key'    => '_tt_pdv_subroute',
+          'meta_value'  => $sr->ID,
+        ]);
+        $link  = get_edit_post_link($sr->ID);
         $count = is_array($pdvs) ? count($pdvs) : 0;
         echo '<li><a href="' . esc_url($link) . '">' . esc_html(get_the_title($sr)) . '</a> (' . intval($count) . ' PDVs)</li>';
       }
@@ -113,21 +77,14 @@ class TTPro_Api {
     $meta = get_post_meta($post->ID);
     echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
 
-    if (class_exists('MB_Relationships_API')) {
-      $subs = MB_Relationships_API::get_connected([
-        'id' => $post->ID,
-        'relationship' => 'subroute_pdv',
-        'direction' => 'to',
-      ]);
-      if ($subs) {
-        $sub = $subs[0];
-        $route_id = wp_get_post_parent_id($sub->ID);
-        $link = get_edit_post_link($sub->ID);
-        echo '<p><strong>Sub-ruta:</strong> <a href="' . esc_url($link) . '">' . esc_html(get_the_title($sub)) . '</a></p>';
-        if ($route_id) {
-          $linkr = get_edit_post_link($route_id);
-          echo '<p><strong>Ruta:</strong> <a href="' . esc_url($linkr) . '">' . esc_html(get_the_title($route_id)) . '</a></p>';
-        }
+    $sub_id = (int) get_post_meta($post->ID, '_tt_pdv_subroute', true);
+    if ($sub_id) {
+      $route_id = wp_get_post_parent_id($sub_id);
+      $link     = get_edit_post_link($sub_id);
+      echo '<p><strong>Sub-ruta:</strong> <a href="' . esc_url($link) . '">' . esc_html(get_the_title($sub_id)) . '</a></p>';
+      if ($route_id) {
+        $linkr = get_edit_post_link($route_id);
+        echo '<p><strong>Ruta:</strong> <a href="' . esc_url($linkr) . '">' . esc_html(get_the_title($route_id)) . '</a></p>';
       }
     }
   }
@@ -138,17 +95,6 @@ class TTPro_Api {
   }
 
   private function route_assigned_to_user($route_id, $user_id) {
-    if (class_exists('MB_Relationships_API')) {
-      $users = MB_Relationships_API::get_connected([
-        'id' => $route_id,
-        'relationship' => 'route_user',
-        'direction' => 'from',
-      ]);
-      foreach ($users as $u) {
-        if ((int) $u->ID === (int) $user_id) return true;
-      }
-      return false;
-    }
     $assigned = (int) get_post_meta($route_id, '_tt_route_user', true);
     return $assigned === (int)$user_id;
   }
@@ -323,15 +269,15 @@ class TTPro_Api {
           $user_id = $this->current_user_id_jwt();
           if (!$user_id) return new WP_Error('tt_no_user','No autenticado', ['status'=>401]);
 
-          // Rutas asignadas al usuario mediante relationships
-          $routes = [];
-          if (class_exists('MB_Relationships_API')) {
-            $routes = MB_Relationships_API::get_connected([
-              'id' => $user_id,
-              'relationship' => 'route_user',
-              'direction' => 'to',
-            ]);
-          }
+          // Rutas asignadas al usuario mediante metadatos
+          $routes = get_posts([
+            'post_type'   => 'tt_route',
+            'numberposts' => -1,
+            'post_parent' => 0,
+            'post_status' => 'any',
+            'meta_key'    => '_tt_route_user',
+            'meta_value'  => $user_id,
+          ]);
           if (empty($routes)) return [];
 
           $out = [];
@@ -343,7 +289,7 @@ class TTPro_Api {
               'subroutes' => []
             ];
             $subroutes = get_posts([
-              'post_type' => 'tt_route',
+              'post_type'   => 'tt_route',
               'numberposts' => -1,
               'post_parent' => $route_id,
               'post_status' => 'any',
@@ -355,14 +301,13 @@ class TTPro_Api {
                 'title' => get_the_title($sub_id),
                 'pdvs' => []
               ];
-              $pdvs = [];
-              if (class_exists('MB_Relationships_API')) {
-                $pdvs = MB_Relationships_API::get_connected([
-                  'id' => $sub_id,
-                  'relationship' => 'subroute_pdv',
-                  'direction' => 'from',
-                ]);
-              }
+              $pdvs = get_posts([
+                'post_type'   => 'tt_pdv',
+                'numberposts' => -1,
+                'post_status' => 'any',
+                'meta_key'    => '_tt_pdv_subroute',
+                'meta_value'  => $sub_id,
+              ]);
               foreach ($pdvs as $p) {
                 $sub_item['pdvs'][] = $this->pdv_payload($p->ID, $route_id, $sub_id);
               }
@@ -466,13 +411,10 @@ class TTPro_Api {
         'post_type'   => 'tt_route',
         'post_status' => 'publish',
         'post_title'  => $r_title,
-        'meta_input'  => [ '_tt_demo' => 1 ],
+        'meta_input'  => [ '_tt_demo' => 1, '_tt_route_user' => $user_id ],
       ]);
       if (!$route_id || is_wp_error($route_id)) continue;
       $routes_created++;
-      if (class_exists('MB_Relationships_API')) {
-        MB_Relationships_API::add($route_id, $user_id, 'route_user');
-      }
 
       $subroutes = [];
       foreach ($sub_names as $sub) {
@@ -502,17 +444,15 @@ class TTPro_Api {
             'post_status' => 'publish',
             'post_title'  => $title,
             'meta_input'  => [
-              '_tt_pdv_code'    => $code,
-              '_tt_pdv_address' => $address,
-              '_tt_pdv_status'  => $status,
-              '_tt_demo'        => 1,
+              '_tt_pdv_code'     => $code,
+              '_tt_pdv_address'  => $address,
+              '_tt_pdv_status'   => $status,
+              '_tt_pdv_subroute' => $sr_id,
+              '_tt_demo'         => 1,
             ],
           ]);
           if ($pdv_id && !is_wp_error($pdv_id)) {
             $pdvs_created++;
-            if (class_exists('MB_Relationships_API')) {
-              MB_Relationships_API::add($sr_id, $pdv_id, 'subroute_pdv');
-            }
           }
         }
       }
