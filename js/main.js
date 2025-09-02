@@ -17,7 +17,7 @@
   // Constantes base de la aplicación
   // ---------------------------------------------------------------------------
   const BRAND = 'Todo Terreno PRO';
-  const API_BASE_DEFAULT = 'https://todoterreno.vistapreliminar.com';
+  const API_BASE_DEFAULT = 'https://todoterreno.prueba.in';
   const IDBVER = 7; // Versión del esquema de IndexedDB
 
   // ---------------------------------------------------------------------------
