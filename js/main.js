@@ -285,7 +285,24 @@
         if (base && jwt) {
           const u = base + '/wp-json/myapp/v1/pdvs_all';
           const r = await fetch(u, { headers: { Authorization: 'Bearer ' + jwt } });
-          if (r.ok) return r.json();
+          if (r.ok) {
+            const data = await r.json();
+            const flat = [];
+            (data || []).forEach((route) => {
+              const rInfo = { id: route.id, title: route.title };
+              (route.subroutes || []).forEach((sr) => {
+                const sInfo = { id: sr.id, title: sr.title };
+                (sr.pdvs || []).forEach((p) => {
+                  flat.push({
+                    ...p,
+                    route: rInfo,
+                    subroute: sInfo,
+                  });
+                });
+              });
+            });
+            return flat;
+          }
         }
       } catch (e) {}
 
