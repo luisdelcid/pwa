@@ -10,7 +10,9 @@ if (!defined('ABSPATH')) exit;
 class TTPro_Api {
   public function __construct() {
     add_action('init',               [$this,'register_cpts']);
-    add_action('mb_relationships_init', [$this,'register_relationships']);
+    if (function_exists('mb_relationships')) {
+      add_action('mb_relationships_init', [$this,'register_relationships']);
+    }
     add_action('rest_api_init',      [$this,'register_routes']);
     add_action('admin_menu',         [$this,'admin_menu']);
     add_action('admin_post_ttpro_seed_demo', [$this,'handle_seed_demo']);
