@@ -15,6 +15,8 @@ class TTPro_Api {
     add_action('admin_post_ttpro_seed_demo', [$this,'handle_seed_demo']);
     add_action('admin_notices',      [$this,'admin_notices']);
     add_action('add_meta_boxes',     [$this,'register_meta_boxes']);
+    add_action('save_post_tt_route', [$this,'save_route_meta']);
+    add_action('save_post_tt_pdv',   [$this,'save_pdv_meta']);
   }
 
   /* ===================== CPTs ===================== */
@@ -46,6 +48,19 @@ class TTPro_Api {
   }
 
   public function render_route_meta($post) {
+    $assigned = (int) get_post_meta($post->ID, '_tt_route_user', true);
+    wp_nonce_field('tt_route_meta', 'tt_route_meta_nonce');
+
+    $users = get_users(['number'=>500,'orderby'=>'display_name','order'=>'ASC']);
+    echo '<p><label for="tt_route_user">Usuario asignado</label><br/><select name="tt_route_user" id="tt_route_user">';
+    echo '<option value="">— Ninguno —</option>';
+    foreach ($users as $u) {
+      $sel = selected($assigned, $u->ID, false);
+      $label = $u->display_name . ' (' . $u->user_login . ')';
+      echo '<option value="' . esc_attr($u->ID) . '" ' . $sel . '>' . esc_html($label) . '</option>';
+    }
+    echo '</select></p>';
+
     $meta = get_post_meta($post->ID);
     echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
 
@@ -74,18 +89,63 @@ class TTPro_Api {
   }
 
   public function render_pdv_meta($post) {
+    $current = (int) get_post_meta($post->ID, '_tt_pdv_subroute', true);
+    wp_nonce_field('tt_pdv_meta', 'tt_pdv_meta_nonce');
+
+    $subroutes = get_posts([
+      'post_type'  => 'tt_route',
+      'numberposts'=> -1,
+      'post_parent__not_in' => [0],
+      'post_status'=> 'any'
+    ]);
+    echo '<p><label for="tt_pdv_subroute">Sub-ruta</label><br/><select name="tt_pdv_subroute" id="tt_pdv_subroute">';
+    echo '<option value="">— Ninguna —</option>';
+    foreach ($subroutes as $sr) {
+      $route_id = wp_get_post_parent_id($sr->ID);
+      $label = get_the_title($sr->ID);
+      if ($route_id) {
+        $label = get_the_title($route_id) . ' / ' . $label;
+      }
+      $sel = selected($current, $sr->ID, false);
+      echo '<option value="' . esc_attr($sr->ID) . '" ' . $sel . '>' . esc_html($label) . '</option>';
+    }
+    echo '</select></p>';
+
     $meta = get_post_meta($post->ID);
     echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
 
-    $sub_id = (int) get_post_meta($post->ID, '_tt_pdv_subroute', true);
-    if ($sub_id) {
-      $route_id = wp_get_post_parent_id($sub_id);
-      $link     = get_edit_post_link($sub_id);
-      echo '<p><strong>Sub-ruta:</strong> <a href="' . esc_url($link) . '">' . esc_html(get_the_title($sub_id)) . '</a></p>';
+    if ($current) {
+      $route_id = wp_get_post_parent_id($current);
+      $link     = get_edit_post_link($current);
+      echo '<p><strong>Sub-ruta:</strong> <a href="' . esc_url($link) . '">' . esc_html(get_the_title($current)) . '</a></p>';
       if ($route_id) {
         $linkr = get_edit_post_link($route_id);
         echo '<p><strong>Ruta:</strong> <a href="' . esc_url($linkr) . '">' . esc_html(get_the_title($route_id)) . '</a></p>';
       }
+    }
+  }
+
+  public function save_route_meta($post_id) {
+    if (!isset($_POST['tt_route_meta_nonce']) || !wp_verify_nonce($_POST['tt_route_meta_nonce'], 'tt_route_meta')) return;
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+    if (!current_user_can('edit_post', $post_id)) return;
+    $uid = isset($_POST['tt_route_user']) ? intval($_POST['tt_route_user']) : 0;
+    if ($uid > 0) {
+      update_post_meta($post_id, '_tt_route_user', $uid);
+    } else {
+      delete_post_meta($post_id, '_tt_route_user');
+    }
+  }
+
+  public function save_pdv_meta($post_id) {
+    if (!isset($_POST['tt_pdv_meta_nonce']) || !wp_verify_nonce($_POST['tt_pdv_meta_nonce'], 'tt_pdv_meta')) return;
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+    if (!current_user_can('edit_post', $post_id)) return;
+    $sub = isset($_POST['tt_pdv_subroute']) ? intval($_POST['tt_pdv_subroute']) : 0;
+    if ($sub > 0) {
+      update_post_meta($post_id, '_tt_pdv_subroute', $sub);
+    } else {
+      delete_post_meta($post_id, '_tt_pdv_subroute');
     }
   }
 
