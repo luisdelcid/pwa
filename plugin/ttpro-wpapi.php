@@ -2,7 +2,7 @@
 /*
 Plugin Name: TT PRO API
 Description: Endpoints para Todo Terreno PRO. CPTs de Rutas y PDVs. Devuelve PDVs del usuario y recibe respuestas (foto como imagen destacada, metadatos y usuario que llenó). Incluye seeder (UI en Herramientas).
-Version: 1.8.0
+Version: 1.8.1
 Author: TT
 */
 if (!defined('ABSPATH')) exit;
@@ -159,7 +159,7 @@ class TTPro_Api {
     register_rest_route('myapp/v1', '/ping', [
       'methods'  => 'GET',
       'permission_callback' => '__return_true',
-      'callback' => function() { return ['ok'=>true,'plugin'=>'ttpro-wpapi','version'=>'1.8.0']; }
+      'callback' => function() { return ['ok'=>true,'plugin'=>'ttpro-wpapi','version'=>'1.8.1']; }
     ]);
 
     // Catálogos (protegido)
