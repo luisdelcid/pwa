@@ -4,9 +4,9 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <div class="container py-4">
   <h2 class="mb-3">Reset PWA</h2>
-  <p>Este utilitario borra <strong>Service Workers</strong>, <strong>Cache Storage</strong>, <strong>IndexedDB</strong>, <strong>localStorage</strong> y <strong>sessionStorage</strong> para <em>este origen</em>.</p>
+  <p>Este utilitario actualiza el <strong>Service Worker</strong> y borra <strong>Cache Storage</strong>, <strong>IndexedDB</strong>, <strong>localStorage</strong> y <strong>sessionStorage</strong> para <em>este origen</em>.</p>
   <div class="btn-toolbar mb-3">
-    <button class="btn btn-danger mr-2" id="btn-reset-all">Unregister SW + limpiar TODO</button>
+    <button class="btn btn-danger mr-2" id="btn-reset-all">Actualizar SW + limpiar TODO</button>
     <button class="btn btn-outline-secondary" id="btn-open-origin">Abrir app</button>
   </div>
   <pre id="log" class="p-3 bg-light border" style="white-space:pre-wrap;max-height:50vh;overflow:auto"></pre>
@@ -36,19 +36,28 @@ async function clearCaches(){
   for(const k of ks){ log('  - ' + k); await caches.delete(k); }
   log('✓ CacheStorage listo');
 }
-async function unregisterSW(){
-  log('• Desregistrando Service Workers…');
+async function updateSW(){
+  log('• Actualizando Service Workers…');
   if(!('serviceWorker' in navigator)){ log('  ! SW no soportado'); return; }
   const regs = await navigator.serviceWorker.getRegistrations();
-  for(const r of regs){ await r.unregister(); log('  - unregistered'); }
+  if(regs.length === 0){ log('  ! no hay registros'); return; }
+  for(const r of regs){
+    try{
+      await r.update();
+      if(r.waiting) r.waiting.postMessage('SKIP_WAITING');
+      log('  - actualizado');
+    }catch(e){
+      log('  ! error: ' + (e.message||e));
+    }
+  }
   log('✓ Service Workers listos');
 }
 async function clearStorage(){ log('• Limpiando localStorage/sessionStorage…'); try{localStorage.clear();}catch(e){} try{sessionStorage.clear();}catch(e){} log('✓ Storage listo'); }
 document.getElementById('btn-reset-all').onclick = async () => {
   log('== INICIO RESET ==');
-  await unregisterSW(); await clearCaches(); await deleteAllIndexedDB(); await clearStorage();
+  await updateSW(); await clearCaches(); await deleteAllIndexedDB(); await clearStorage();
   log('== FIN RESET ==');
-    log('Listo. Recarga la app.');
+  log('Listo. Recarga la app.');
   //alert('Listo. Recarga la app.');
 };
 document.getElementById('btn-open-origin').onclick = () => {
