@@ -49,17 +49,34 @@ class TTPro_Api {
   }
 
   public function register_relationships() {
-    mb_relationships([
+    if (!class_exists('MB_Relationships_API')) return;
+
+    MB_Relationships_API::register([
       'id'   => 'route_user',
-      'from' => ['object_type' => 'post', 'post_type' => 'tt_route'],
-      'to'   => ['object_type' => 'user'],
+      'from' => [
+        'object_type' => 'post',
+        'post_type'   => 'tt_route',
+        'meta_box'    => [ 'title' => 'Vendedores' ],
+      ],
+      'to'   => [
+        'object_type' => 'user',
+        'meta_box'    => [ 'title' => 'Rutas asignadas' ],
+      ],
       'reciprocal' => true,
     ]);
 
-    mb_relationships([
+    MB_Relationships_API::register([
       'id'   => 'subroute_pdv',
-      'from' => ['object_type' => 'post', 'post_type' => 'tt_route'],
-      'to'   => ['object_type' => 'post', 'post_type' => 'tt_pdv'],
+      'from' => [
+        'object_type' => 'post',
+        'post_type'   => 'tt_route',
+        'meta_box'    => [ 'title' => 'Puntos de venta' ],
+      ],
+      'to'   => [
+        'object_type' => 'post',
+        'post_type'   => 'tt_pdv',
+        'meta_box'    => [ 'title' => 'Sub-ruta' ],
+      ],
     ]);
   }
 
