@@ -17,7 +17,7 @@
   // Constantes base de la aplicación
   // ---------------------------------------------------------------------------
   const BRAND = 'Todo Terreno PRO';
-  const API_BASE_DEFAULT = 'https://todoterreno.vistapreliminar.com';
+  const API_BASE_DEFAULT = 'https://todoterreno.prueba.in';
   const IDBVER = 7; // Versión del esquema de IndexedDB
 
   // ---------------------------------------------------------------------------
@@ -1270,7 +1270,7 @@
           '<div class="card-body">' +
             '<div class="form-group">' +
               '<label>API Base</label>' +
-              '<input type="url" id="opt-api" class="form-control" placeholder="https://todoterreno.vistapreliminar.com">' +
+              '<input type="url" id="opt-api" class="form-control" placeholder="https://todoterreno.prueba.in">' +
               '<small class="form-text text-muted">Edita solo si cambias de dominio.</small>' +
             '</div>' +
 
@@ -1288,7 +1288,7 @@
     );
 
     // Valor actual de API Base
-    $('#opt-api').val(localStorage.getItem('apiBase') || 'https://todoterreno.vistapreliminar.com');
+    $('#opt-api').val(localStorage.getItem('apiBase') || 'https://todoterreno.prueba.in');
 
     // Guardar API Base
     $('#btn-save-api').on('click', function () {
@@ -1301,7 +1301,7 @@
     // Restablecer API Base
     $('#btn-reset-api').on('click', function () {
       localStorage.removeItem('apiBase');
-      $('#opt-api').val('https://todoterreno.vistapreliminar.com');
+      $('#opt-api').val('https://todoterreno.prueba.in');
       alert('Restablecido.');
     });
 
