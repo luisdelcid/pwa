@@ -636,7 +636,7 @@
         '<div class="d-flex align-items-center mb-2">' +
           '<h5 class="m-0">' + routeTitle + '</h5>' +
           '<div class="ml-auto d-flex align-items-center">' +
-            '<label class="mr-2 mb-0 small text-muted">Sub-ruta</label>' +
+            '<label class="mr-2 mb-0 small text-muted">Filtrar</label>' +
             '<select class="form-control form-control-sm" id="subroute-filter" style="min-width:220px"></select>' +
           '</div>' +
         '</div>' +
