@@ -50,7 +50,7 @@ class TTPro_Api {
     $pdvs = get_posts([
       'post_type'  => 'tt_pdv',
       'numberposts'=> -1,
-      'meta_key'   => '_tt_pdv_route',
+      'meta_key'   => 'tt_pdv_route',
       'meta_value' => $post->ID,
     ]);
     if ($pdvs) {
@@ -67,7 +67,7 @@ class TTPro_Api {
     $meta = get_post_meta($post->ID);
     echo '<h4>Metadatos</h4><pre>' . esc_html(print_r($meta, true)) . '</pre>';
 
-    $route_id = (int) get_post_meta($post->ID, '_tt_pdv_route', true);
+    $route_id = (int) get_post_meta($post->ID, 'tt_pdv_route', true);
     if ($route_id) {
       $link = get_edit_post_link($route_id);
       $title = get_the_title($route_id);
@@ -81,18 +81,18 @@ class TTPro_Api {
   }
 
   private function route_assigned_to_user($route_id, $user_id) {
-    $assigned = (int) get_post_meta($route_id, '_tt_route_user', true);
+    $assigned = (int) get_post_meta($route_id, 'tt_route_user', true);
     return $assigned === (int)$user_id;
   }
 
   private function pdv_payload($pdv_id) {
-    $route_id    = (int) get_post_meta($pdv_id, '_tt_pdv_route', true);
-    $status      = (string) get_post_meta($pdv_id, '_tt_pdv_status', true);
-    $code        = (string) get_post_meta($pdv_id, '_tt_pdv_code', true);
-    $address     = (string) get_post_meta($pdv_id, '_tt_pdv_address', true);
+    $route_id    = (int) get_post_meta($pdv_id, 'tt_pdv_route', true);
+    $status      = (string) get_post_meta($pdv_id, 'tt_pdv_status', true);
+    $code        = (string) get_post_meta($pdv_id, 'tt_pdv_code', true);
+    $address     = (string) get_post_meta($pdv_id, 'tt_pdv_address', true);
     $route_title = $route_id ? get_the_title($route_id) : '';
-    $day_id      = (string) get_post_meta($pdv_id, '_tt_pdv_day_id', true);
-    $day_title   = (string) get_post_meta($pdv_id, '_tt_pdv_day_title', true);
+    $day_id      = (string) get_post_meta($pdv_id, 'tt_pdv_day_id', true);
+    $day_title   = (string) get_post_meta($pdv_id, 'tt_pdv_day_title', true);
     return [
       'id'      => (string) $pdv_id,
       'code'    => $code ?: '',
@@ -268,7 +268,7 @@ class TTPro_Api {
           // PDVs en esas rutas
           $pdvs = get_posts([
             'post_type'=>'tt_pdv','numberposts'=>-1,'post_status'=>'any',
-            'meta_query'=>[[ 'key'=>'_tt_pdv_route','value'=>$allowed_route_ids,'compare'=>'IN' ]]
+            'meta_query'=>[[ 'key'=>'tt_pdv_route','value'=>$allowed_route_ids,'compare'=>'IN' ]]
           ]);
 
           $out = [];
@@ -313,10 +313,10 @@ class TTPro_Api {
           $answers = isset($it['answers']) && is_array($it['answers']) ? $it['answers'] : [];
           $geo     = isset($it['geo']) && is_array($it['geo']) ? $it['geo'] : [];
 
-          update_post_meta($pdv_id, '_tt_pdv_answers', wp_json_encode($answers));
-          update_post_meta($pdv_id, '_tt_pdv_geolocation', wp_json_encode($geo));
-          update_post_meta($pdv_id, '_tt_pdv_filled_by', $user_id);         // 👈 quién llenó
-          update_post_meta($pdv_id, '_tt_pdv_filled_at', current_time('mysql'));
+          update_post_meta($pdv_id, 'tt_pdv_answers', wp_json_encode($answers));
+          update_post_meta($pdv_id, 'tt_pdv_geolocation', wp_json_encode($geo));
+          update_post_meta($pdv_id, 'tt_pdv_filled_by', $user_id);         // 👈 quién llenó
+          update_post_meta($pdv_id, 'tt_pdv_filled_at', current_time('mysql'));
 
           // Foto (imagen destacada)
           if (!empty($it['photo_base64']) && is_string($it['photo_base64'])) {
@@ -325,7 +325,7 @@ class TTPro_Api {
           }
 
           // Estado
-          update_post_meta($pdv_id, '_tt_pdv_status', 'synced');
+          update_post_meta($pdv_id, 'tt_pdv_status', 'synced');
           $updated++;
         }
 
@@ -376,8 +376,8 @@ class TTPro_Api {
         'post_status' => 'publish',
         'post_title'  => $r_title,
         'meta_input'  => [
-          '_tt_route_user' => $user_id,
-          '_tt_demo'       => 1,
+          'tt_route_user' => $user_id,
+          'tt_demo'       => 1,
         ],
       ]);
       if (!$route_id || is_wp_error($route_id)) continue;
@@ -396,13 +396,13 @@ class TTPro_Api {
           'post_status' => 'publish',
           'post_title'  => $title,
           'meta_input'  => [
-            '_tt_pdv_route'     => $route_id,
-            '_tt_pdv_code'      => $code,
-            '_tt_pdv_address'   => $address,
-            '_tt_pdv_status'    => $status,
-            '_tt_pdv_day_id'    => $day['id'],
-            '_tt_pdv_day_title' => $day['title'],
-            '_tt_demo'          => 1,
+            'tt_pdv_route'     => $route_id,
+            'tt_pdv_code'      => $code,
+            'tt_pdv_address'   => $address,
+            'tt_pdv_status'    => $status,
+            'tt_pdv_day_id'    => $day['id'],
+            'tt_pdv_day_title' => $day['title'],
+            'tt_demo'          => 1,
           ],
         ]);
         if ($ok && !is_wp_error($ok)) $pdvs_created++;
@@ -418,7 +418,7 @@ class TTPro_Api {
         'post_type'  => $pt,
         'numberposts'=> -1,
         'post_status'=> 'any',
-        'meta_query' => [[ 'key'=>'_tt_demo','value'=>1,'compare'=>'=' ]]
+        'meta_query' => [[ 'key'=>'tt_demo','value'=>1,'compare'=>'=' ]]
       ]);
       foreach ($posts as $p) {
         wp_delete_post($p->ID, true);
