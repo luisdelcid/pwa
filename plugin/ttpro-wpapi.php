@@ -1,8 +1,8 @@
 <?php
 /*
 Plugin Name: TT PRO API
-Description: Endpoints para Todo Terreno PRO. CPTs de Rutas y PDVs. Devuelve PDVs del usuario y recibe respuestas (foto como imagen destacada, metadatos y usuario que llenó). Incluye seeder (UI en Herramientas).
-Version: 1.8.0
+Description: Endpoints para Todo Terreno PRO. CPTs de Rutas y PDVs. Devuelve PDVs del usuario y recibe respuestas (foto como imagen destacada, metadatos y usuario que llenó).
+Version: 1.9.0
 Author: TT
 */
 if (!defined('ABSPATH')) exit;
@@ -11,9 +11,6 @@ class TTPro_Api {
   public function __construct() {
     add_action('init',               [$this,'register_cpts']);
     add_action('rest_api_init',      [$this,'register_routes']);
-    add_action('admin_menu',         [$this,'admin_menu']);
-    add_action('admin_post_ttpro_seed_demo', [$this,'handle_seed_demo']);
-    add_action('admin_notices',      [$this,'admin_notices']);
     add_action('mb_relationships_init', [$this,'register_relationships']);
   }
 
@@ -183,7 +180,7 @@ class TTPro_Api {
     register_rest_route('myapp/v1', '/ping', [
       'methods'  => 'GET',
       'permission_callback' => '__return_true',
-      'callback' => function() { return ['ok'=>true,'plugin'=>'ttpro-wpapi','version'=>'1.8.0']; }
+      'callback' => function() { return ['ok'=>true,'plugin'=>'ttpro-wpapi','version'=>'1.9.0']; }
     ]);
 
     // Catálogos (protegido)
@@ -395,207 +392,8 @@ class TTPro_Api {
       }
     ]);
 
-    /* ===== Opcionales por REST (admin): seeder & clear ===== */
-    register_rest_route('myapp/v1', '/seed-demo', [
-      'methods'  => 'GET',
-      'permission_callback' => function() { return current_user_can('manage_options'); },
-      'callback' => function($req) {
-        $routes_n = isset($req['routes']) ? max(1, intval($req['routes'])) : 5;
-        $pdvs_n   = isset($req['pdvs'])   ? max(1, intval($req['pdvs']))   : 30;
-        $user = $this->find_user_from_request($req);
-        if (!$user) return new WP_Error('tt_seed_user','Especifica user_id o user_login válidos', ['status'=>400]);
-        if (isset($req['clear']) && intval($req['clear'])===1) { $this->seed_clear(); }
-        $result = $this->seed_generate($user->ID, $routes_n, $pdvs_n);
-        return ['ok'=>true] + $result;
-      }
-    ]);
-
-    register_rest_route('myapp/v1', '/seed-clear', [
-      'methods'  => 'GET',
-      'permission_callback' => function() { return current_user_can('manage_options'); },
-      'callback' => function($req) {
-        $deleted = $this->seed_clear();
-        return ['ok'=>true,'deleted'=>$deleted];
-      }
-    ]);
   }
 
-  /* ===================== Seeder (núcleo + UI) ===================== */
-  private function seed_generate($user_id, $routes_n, $pdvs_n) {
-    $routes_created = 0; $pdvs_created = 0;
-    $days = [
-      ['id' => 'un01', 'title' => 'UN01'],
-      ['id' => 'un02', 'title' => 'UN02'],
-      ['id' => 'un03', 'title' => 'UN03'],
-      ['id' => 'un04', 'title' => 'UN04'],
-      ['id' => 'un05', 'title' => 'UN05'],
-    ];
-
-    for ($i=1; $i<=$routes_n; $i++) {
-      $r_title = 'VG'.sprintf('%02d',$i);
-      $route_id = wp_insert_post([
-        'post_type'   => 'tt_route',
-        'post_status' => 'publish',
-        'post_title'  => $r_title,
-        'meta_input'  => [
-          'tt_route_user' => $user_id,
-          'tt_demo'       => 1,
-        ],
-      ]);
-      if (!$route_id || is_wp_error($route_id)) continue;
-      $routes_created++;
-      // Crea sub-rutas
-      $sub_ids = [];
-      foreach ($days as $d) {
-        $sub_id = wp_insert_post([
-          'post_type'   => 'tt_route',
-          'post_status' => 'publish',
-          'post_title'  => $r_title.' - '.$d['title'],
-          'post_parent' => $route_id,
-          'meta_input'  => [ 'tt_demo' => 1 ],
-        ]);
-        if ($sub_id && !is_wp_error($sub_id)) $sub_ids[] = $sub_id;
-      }
-
-      for ($j=1; $j<=$pdvs_n; $j++) {
-        $code    = sprintf('%02d-%03d', $i, $j);
-        $title   = 'PDV '.$code;
-        $address = 'Calle '.rand(1,99).', Zona '.rand(1,24);
-        $status  = (rand(0,100) < 20) ? 'synced' : 'pending'; // ~20% ya sincronizados
-        $sub_id  = $sub_ids[($j - 1) % max(1,count($sub_ids))];
-
-        $ok = wp_insert_post([
-          'post_type'   => 'tt_pdv',
-          'post_status' => 'publish',
-          'post_title'  => $title,
-          'meta_input'  => [
-            'tt_pdv_route'   => $sub_id,
-            'tt_pdv_code'    => $code,
-            'tt_pdv_address' => $address,
-            'tt_pdv_status'  => $status,
-            'tt_demo'        => 1,
-          ],
-        ]);
-        if ($ok && !is_wp_error($ok)) $pdvs_created++;
-      }
-    }
-    return ['routes_created'=>$routes_created, 'pdvs_per_route'=>$pdvs_n, 'pdvs_created'=>$pdvs_created, 'user_id'=>$user_id];
-  }
-
-  private function seed_clear() {
-    $deleted = 0;
-    foreach (['tt_pdv','tt_route'] as $pt) {
-      $posts = get_posts([
-        'post_type'  => $pt,
-        'numberposts'=> -1,
-        'post_status'=> 'any',
-        'meta_query' => [[ 'key'=>'tt_demo','value'=>1,'compare'=>'=' ]]
-      ]);
-      foreach ($posts as $p) {
-        wp_delete_post($p->ID, true);
-        $deleted++;
-      }
-    }
-    return $deleted;
-  }
-
-  /* ===================== Admin UI (Tools) ===================== */
-  public function admin_menu() {
-    add_management_page('TT PRO Seeder','TT PRO Seeder','manage_options','ttpro-seeder',[$this,'render_admin_page']);
-  }
-
-  public function render_admin_page() {
-    if (!current_user_can('manage_options')) return;
-    $users = get_users(['number'=>500,'orderby'=>'display_name','order'=>'ASC']);
-    ?>
-    <div class="wrap">
-      <h1>TT PRO Seeder</h1>
-      <p>Genera contenido de demo para probar la PWA: crea Rutas y PDVs asignados a un usuario.</p>
-
-      <form method="post" action="<?php echo esc_url( admin_url('admin-post.php') ); ?>">
-        <?php wp_nonce_field('ttpro_seed_nonce','ttpro_seed_nonce'); ?>
-        <input type="hidden" name="action" value="ttpro_seed_demo">
-
-        <table class="form-table" role="presentation">
-          <tr>
-            <th scope="row"><label for="user_id">Usuario asignado</label></th>
-            <td>
-              <select id="user_id" name="user_id" style="min-width:260px;">
-                <?php foreach ($users as $u): ?>
-                  <option value="<?php echo esc_attr($u->ID); ?>">
-                    <?php echo esc_html($u->display_name.' ('.$u->user_login.')'); ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
-              <p class="description">Selecciona el usuario que tendrá asignadas las rutas y PDVs.</p>
-            </td>
-          </tr>
-          <tr>
-            <th scope="row"><label for="routes">Cantidad de rutas</label></th>
-            <td><input name="routes" id="routes" type="number" min="1" max="200" step="1" value="5" class="small-text"> <span class="description">p. ej., 5</span></td>
-          </tr>
-          <tr>
-            <th scope="row"><label for="pdvs">PDVs por ruta</label></th>
-            <td><input name="pdvs" id="pdvs" type="number" min="1" max="1000" step="1" value="30" class="small-text"> <span class="description">p. ej., 30</span></td>
-          </tr>
-          <tr>
-            <th scope="row">Limpiar demo previa</th>
-            <td><label><input type="checkbox" name="clear" value="1" checked> Borrar primero los posts de demo existentes</label></td>
-          </tr>
-        </table>
-
-        <?php submit_button('Generar demo'); ?>
-      </form>
-
-      <hr>
-      <p>Diagnóstico del plugin: <a href="<?php echo esc_url( rest_url('myapp/v1/ping') ); ?>" target="_blank"><?php echo esc_html( rest_url('myapp/v1/ping') ); ?></a></p>
-    </div>
-    <?php
-  }
-
-  public function handle_seed_demo() {
-    if (!current_user_can('manage_options')) wp_die('No autorizado');
-    check_admin_referer('ttpro_seed_nonce','ttpro_seed_nonce');
-
-    $user_id  = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
-    $routes_n = isset($_POST['routes'])  ? max(1, intval($_POST['routes'])) : 5;
-    $pdvs_n   = isset($_POST['pdvs'])    ? max(1, intval($_POST['pdvs']))   : 30;
-    $clear    = !empty($_POST['clear']);
-
-    if ($user_id <= 0 || !get_user_by('id',$user_id)) {
-      $this->push_admin_notice('Usuario inválido.', 'error');
-      wp_redirect( admin_url('tools.php?page=ttpro-seeder&ttpro_seed_done=0') ); exit;
-    }
-
-    if ($clear) $this->seed_clear();
-    $result = $this->seed_generate($user_id, $routes_n, $pdvs_n);
-
-    $msg = sprintf('Demo generada: %d rutas × %d PDVs por ruta (total %d PDVs) asignados a usuario #%d.',
-      $result['routes_created'], $result['pdvs_per_route'], $result['pdvs_created'], $user_id);
-    $this->push_admin_notice($msg, 'success');
-
-    wp_redirect( admin_url('tools.php?page=ttpro-seeder&ttpro_seed_done=1') ); exit;
-  }
-
-  /* ===================== Admin notices ===================== */
-  private function push_admin_notice($msg, $type='success') {
-    $notices = get_transient('ttpro_seed_notices');
-    if (!is_array($notices)) $notices = [];
-    $notices[] = ['type'=>$type,'msg'=>$msg];
-    set_transient('ttpro_seed_notices', $notices, 60); // 1 min
-  }
-  public function admin_notices() {
-    $screen = get_current_screen();
-    if (!$screen || $screen->id !== 'tools_page_ttpro-seeder') return;
-    $notices = get_transient('ttpro_seed_notices');
-    if (empty($notices)) return;
-    delete_transient('ttpro_seed_notices');
-    foreach ($notices as $n) {
-      $class = $n['type']==='error' ? 'notice-error' : 'notice-success';
-      printf('<div class="notice %s is-dismissible"><p>%s</p></div>',
-        esc_attr($class), esc_html($n['msg']));
-    }
-  }
 }
 
 new TTPro_Api();
