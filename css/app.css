@@ -1,32 +1,21 @@
-:root {
-  /* Alturas fijas de layout para header, breadcrumbs y footer (en px) */
-  --app-header-h: 56px;
-  --app-breadcrumb-h: 42px;
-  --app-footer-h: 54px;
-}
-
 /* Fondo general del cuerpo de la app */
 .app-body { background: #f7f9fc; }
 
-/* Barra superior (altura fija) */
-.app-header { height: var(--app-header-h); }
+/* Barra superior */
+.app-header {}
 
-/* Cinta de breadcrumbs (se posiciona debajo del header) */
-.app-bc {
-  top: var(--app-header-h);
-  z-index: 1029;                 /* sobre contenido (similar a Bootstrap navbars) */
-  min-height: var(--app-breadcrumb-h);
-}
+/* Cinta de breadcrumbs */
+.app-bc {}
 
-/* Área principal: agrega padding top/bottom para no tapar header/breadcrumbs/footer */
+/* Área principal: espaciado estándar */
 .app-main {
-  padding-top: calc(var(--app-header-h) + var(--app-breadcrumb-h) + 12px);
-  padding-bottom: calc(var(--app-footer-h) + 12px);
-  min-height: 100vh;             /* pantalla completa (sin contar header/footer) */
+  padding-top: 12px;
+  padding-bottom: 12px;
+  min-height: 100vh;             /* pantalla completa */
 }
 
-/* Barra inferior fija (altura fija) */
-.app-footer { height: var(--app-footer-h); }
+/* Barra inferior */
+.app-footer {}
 
 /* Tarjetas con “sensación táctil”: bordes redondeados + sombra suave */
 .card-tap {
