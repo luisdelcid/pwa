@@ -23,7 +23,9 @@ class TTPro_Api {
       'label'        => 'Rutas',
       'public'       => false,
       'show_ui'      => true,
-      'supports'     => ['title','author','custom-fields'],
+      'supports'     => ['title','author','custom-fields','page-attributes'],
+      'hierarchical' => true,
+      'rewrite'      => ['slug'=>'tt_route','with_front'=>false,'hierarchical'=>true],
       'show_in_rest' => false,
       'menu_position'=> 25,
     ]);
@@ -86,13 +88,13 @@ class TTPro_Api {
   }
 
   private function pdv_payload($pdv_id) {
-    $route_id    = (int) get_post_meta($pdv_id, 'tt_pdv_route', true);
+    $sub_id      = (int) get_post_meta($pdv_id, 'tt_pdv_route', true); // ahora sub-ruta
     $status      = (string) get_post_meta($pdv_id, 'tt_pdv_status', true);
     $code        = (string) get_post_meta($pdv_id, 'tt_pdv_code', true);
     $address     = (string) get_post_meta($pdv_id, 'tt_pdv_address', true);
+    $sub_title   = $sub_id ? get_the_title($sub_id) : '';
+    $route_id    = $sub_id ? (int) wp_get_post_parent_id($sub_id) : 0;
     $route_title = $route_id ? get_the_title($route_id) : '';
-    $day_id      = (string) get_post_meta($pdv_id, 'tt_pdv_day_id', true);
-    $day_title   = (string) get_post_meta($pdv_id, 'tt_pdv_day_title', true);
     return [
       'id'      => (string) $pdv_id,
       'code'    => $code ?: '',
@@ -100,7 +102,7 @@ class TTPro_Api {
       'address' => $address ?: '',
       'status'  => $status ?: 'pending', // pending | filled | synced
       'route'   => [ 'id' => (string)$route_id, 'title' => $route_title ],
-      'subroute'=> [ 'id' => (string)$day_id, 'title' => $day_title ],
+      'subroute'=> [ 'id' => (string)$sub_id,   'title' => $sub_title   ],
     ];
   }
 
@@ -248,7 +250,7 @@ class TTPro_Api {
       }
     ]);
 
-    // PDVs del usuario autenticado — alias con guion bajo y medio
+    // Rutas + sub-rutas + PDVs del usuario autenticado
     foreach (['/pdvs_all','/pdvs-all'] as $route_path) {
       register_rest_route('myapp/v1', $route_path, [
         'methods'  => 'GET',
@@ -257,22 +259,52 @@ class TTPro_Api {
           $user_id = $this->current_user_id_jwt();
           if (!$user_id) return new WP_Error('tt_no_user','No autenticado', ['status'=>401]);
 
-          // Rutas asignadas al usuario
-          $routes = get_posts([ 'post_type'=>'tt_route','numberposts'=>-1,'post_status'=>'any' ]);
-          $allowed_route_ids = [];
-          foreach ($routes as $r) {
-            if ($this->route_assigned_to_user($r->ID, $user_id)) $allowed_route_ids[] = $r->ID;
-          }
-          if (empty($allowed_route_ids)) return [];
-
-          // PDVs en esas rutas
-          $pdvs = get_posts([
-            'post_type'=>'tt_pdv','numberposts'=>-1,'post_status'=>'any',
-            'meta_query'=>[[ 'key'=>'tt_pdv_route','value'=>$allowed_route_ids,'compare'=>'IN' ]]
+          // Rutas principales asignadas al usuario
+          $routes = get_posts([
+            'post_type'   => 'tt_route',
+            'numberposts' => -1,
+            'post_status' => 'any',
+            'post_parent' => 0,
+            'meta_query'  => [[ 'key'=>'tt_route_user','value'=>$user_id,'compare'=>'=' ]],
           ]);
+          if (!$routes) return [];
 
           $out = [];
-          foreach ($pdvs as $p) $out[] = $this->pdv_payload($p->ID);
+          foreach ($routes as $r) {
+            $route_node = [
+              'id'        => (string) $r->ID,
+              'title'     => get_the_title($r),
+              'subroutes' => [],
+            ];
+
+            $subs = get_posts([
+              'post_type'   => 'tt_route',
+              'numberposts' => -1,
+              'post_status' => 'any',
+              'post_parent' => $r->ID,
+            ]);
+
+            foreach ($subs as $s) {
+              $pdvs = get_posts([
+                'post_type'  => 'tt_pdv',
+                'numberposts'=> -1,
+                'post_status'=> 'any',
+                'meta_query' => [[ 'key'=>'tt_pdv_route','value'=>$s->ID,'compare'=>'=' ]],
+              ]);
+
+              $pdv_list = [];
+              foreach ($pdvs as $p) $pdv_list[] = $this->pdv_payload($p->ID);
+
+              $route_node['subroutes'][] = [
+                'id'    => (string) $s->ID,
+                'title' => get_the_title($s),
+                'pdvs'  => $pdv_list,
+              ];
+            }
+
+            $out[] = $route_node;
+          }
+
           return $out;
         }
       ]);
@@ -362,15 +394,15 @@ class TTPro_Api {
   private function seed_generate($user_id, $routes_n, $pdvs_n) {
     $routes_created = 0; $pdvs_created = 0;
     $days = [
-      ['id' => 'day_1', 'title' => 'Lunes'],
-      ['id' => 'day_2', 'title' => 'Martes'],
-      ['id' => 'day_3', 'title' => 'Miércoles'],
-      ['id' => 'day_4', 'title' => 'Jueves'],
-      ['id' => 'day_5', 'title' => 'Viernes'],
+      ['id' => 'un01', 'title' => 'UN01'],
+      ['id' => 'un02', 'title' => 'UN02'],
+      ['id' => 'un03', 'title' => 'UN03'],
+      ['id' => 'un04', 'title' => 'UN04'],
+      ['id' => 'un05', 'title' => 'UN05'],
     ];
 
     for ($i=1; $i<=$routes_n; $i++) {
-      $r_title = 'Ruta Demo '.$i;
+      $r_title = 'VG'.sprintf('%02d',$i);
       $route_id = wp_insert_post([
         'post_type'   => 'tt_route',
         'post_status' => 'publish',
@@ -382,27 +414,36 @@ class TTPro_Api {
       ]);
       if (!$route_id || is_wp_error($route_id)) continue;
       $routes_created++;
+      // Crea sub-rutas
+      $sub_ids = [];
+      foreach ($days as $d) {
+        $sub_id = wp_insert_post([
+          'post_type'   => 'tt_route',
+          'post_status' => 'publish',
+          'post_title'  => $r_title.' - '.$d['title'],
+          'post_parent' => $route_id,
+          'meta_input'  => [ 'tt_demo' => 1 ],
+        ]);
+        if ($sub_id && !is_wp_error($sub_id)) $sub_ids[] = $sub_id;
+      }
 
       for ($j=1; $j<=$pdvs_n; $j++) {
         $code    = sprintf('%02d-%03d', $i, $j);
         $title   = 'PDV '.$code;
         $address = 'Calle '.rand(1,99).', Zona '.rand(1,24);
         $status  = (rand(0,100) < 20) ? 'synced' : 'pending'; // ~20% ya sincronizados
-
-        $day     = $days[($j - 1) % count($days)];
+        $sub_id  = $sub_ids[($j - 1) % max(1,count($sub_ids))];
 
         $ok = wp_insert_post([
           'post_type'   => 'tt_pdv',
           'post_status' => 'publish',
           'post_title'  => $title,
           'meta_input'  => [
-            'tt_pdv_route'     => $route_id,
-            'tt_pdv_code'      => $code,
-            'tt_pdv_address'   => $address,
-            'tt_pdv_status'    => $status,
-            'tt_pdv_day_id'    => $day['id'],
-            'tt_pdv_day_title' => $day['title'],
-            'tt_demo'          => 1,
+            'tt_pdv_route'   => $sub_id,
+            'tt_pdv_code'    => $code,
+            'tt_pdv_address' => $address,
+            'tt_pdv_status'  => $status,
+            'tt_demo'        => 1,
           ],
         ]);
         if ($ok && !is_wp_error($ok)) $pdvs_created++;
