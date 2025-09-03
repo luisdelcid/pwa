@@ -37,11 +37,11 @@
 
 <body class="app-body">
   <!--
-    HEADER FIJO (fixed-top)
+    HEADER
     - Incluye logo/título a la izquierda y acciones rápidas a la derecha.
     - Botones: Ajustes (engranaje) y Cerrar sesión (salir).
   -->
-  <header class="app-header navbar navbar-light bg-white border-bottom fixed-top">
+  <header class="app-header navbar navbar-light bg-white border-bottom">
     <div class="container-fluid align-items-center d-flex justify-content-between">
       <div class="d-flex align-items-center">
         <!-- Logotipo redondeado -->
@@ -63,11 +63,10 @@
   </header>
 
   <!--
-    BREADCRUMBS (sticky-top)
+    BREADCRUMBS
     - Muestra la ruta de navegación; el contenido se inyecta desde main.js en #breadcrumbs
-    - Se posiciona justo debajo del header fijo
   -->
-  <nav class="app-bc border-bottom bg-white sticky-top">
+  <nav class="app-bc border-bottom bg-white">
     <div class="container-fluid">
       <ol class="breadcrumb mb-0 py-2 px-0 bg-white" id="breadcrumbs"></ol>
     </div>
@@ -81,11 +80,11 @@
   <main class="app-main container-fluid" id="app-main" role="main" tabindex="-1"></main>
 
   <!--
-    FOOTER FIJO (fixed-bottom)
+    FOOTER
     - Chips informativos: estado de conexión, pendientes, sincronizados
     - Botón "Sincronizar" para forzar tryProcessQueue()
   -->
-  <footer class="app-footer fixed-bottom border-top bg-white">
+  <footer class="app-footer border-top bg-white">
     <div class="container-fluid py-2">
       <div class="d-flex align-items-center flex-wrap w-100">
         <span class="badge badge-pill badge-success" id="chip-online">Online</span>
