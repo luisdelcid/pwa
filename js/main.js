@@ -977,6 +977,15 @@
       return fields.filter(shouldShowField);
     }
 
+    function hasValue(f) {
+      const val = answers[f.id];
+      if (f.type === 'photo') return !!photoBlob;
+      if (f.type === 'checkbox') return Array.isArray(val) && val.length > 0;
+      if (f.type === 'geo') return val && val.lat && val.lng;
+      if (typeof val === 'string') return val.trim() !== '';
+      return val !== undefined && val !== null;
+    }
+
     setBreadcrumbs([
       { label: 'Rutas', href: '#/routes' },
       { label: routeTitle, href: '#/pdvs?routeId=' + encodeURIComponent(routeId) },
@@ -1002,8 +1011,8 @@
       $('#progressbar').css('width', pct + '%');
       $('#step-label').text((step + 1) + '/' + total);
       $('#btn-next').text(step === (total - 1) ? 'Finalizar' : 'Siguiente');
-      if (field && field.type === 'photo') {
-        $('#btn-next').prop('disabled', !photoBlob);
+      if (field && field.required) {
+        $('#btn-next').prop('disabled', !hasValue(field));
       } else {
         $('#btn-next').prop('disabled', false);
       }
@@ -1069,22 +1078,29 @@
       } else if (f.type === 'geo') {
         try { await cam.stop(); } catch (e) {}
         $b.append('<div class="form-step-title mb-2">' + f.label + '</div>')
-          .append(geoUI((v) => { answers[f.id] = v; }));
+          .append(geoUI((v) => { answers[f.id] = v; updateStepUI(seq.length, f); }));
       } else {
         try { await cam.stop(); } catch (e) {}
         const val = answers[f.id];
-        $b.append(renderField(f, val, (v) => { answers[f.id] = v; }));
+        $b.append(renderField(f, val, (v) => { answers[f.id] = v; updateStepUI(seq.length, f); }));
       }
 
       updateStepUI(seq.length, f);
     }
 
     async function finalize() {
+      const photoBase64 = photoBlob ? await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(photoBlob);
+      }) : null;
+
       const payload = {
         pdvId: pdvId,
         routeId: routeId,
         answers: answers,
-        photo: photoBlob ? { size: photoBlob.size, mime: photoBlob.type } : null,
+        photoBase64: photoBase64,
         status: 'filled',
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -1112,8 +1128,8 @@
     $('#app-main').off('click', '#btn-next').on('click', '#btn-next', async function () {
       const seq = visibleFields();
       const f = seq[step];
-      if (f.type === 'photo' && !photoBlob) {
-        alert('Primero captura una foto.');
+      if (f.required && !hasValue(f)) {
+        alert('Completa el campo requerido.');
         return;
       }
 
@@ -1165,6 +1181,7 @@
           created_at: it.createdAt,
           updated_at: it.updatedAt,
           dedupeKey: it.dedupeKey,
+          photo_base64: it.photoBase64,
         }));
 
         const r = await fetch(url, {
