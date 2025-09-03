@@ -309,10 +309,19 @@
    */
   async function loadCached() {
     const c = await idb.get('appdata', 'catalogs');
-    const p = await idb.get('appdata', 'routes_all');
+    let p = await idb.get('appdata', 'routes_all');
 
     store.catalogs = (c && c.value) || { version: 1, fields: [] };
-    store.routesAll = (p && p.value) || [];
+
+    if (p && p.value) {
+      store.routesAll = p.value;
+    } else {
+      const legacy = await idb.get('appdata', 'pdvs_all');
+      store.routesAll = legacy ? legacyRoutesFromPdvs(legacy.value || []) : [];
+      if (legacy && legacy.value) {
+        await idb.put('appdata', { key: 'routes_all', value: store.routesAll, ts: Date.now() });
+      }
+    }
   }
 
   /**
@@ -392,6 +401,26 @@
       (sr.pdvs || []).forEach((p) => out.push(p));
     });
     return out;
+  }
+
+  function legacyRoutesFromPdvs(pdvs) {
+    const map = new Map();
+    (pdvs || []).forEach((p) => {
+      const rId = p.route && p.route.id ? String(p.route.id) : '';
+      if (!rId) return;
+      if (!map.has(rId)) {
+        map.set(rId, { id: rId, title: p.route.title || ('Ruta ' + rId), subroutes: [] });
+      }
+      const route = map.get(rId);
+      const srId = p.subroute && p.subroute.id ? String(p.subroute.id) : '';
+      let sr = route.subroutes.find((s) => s.id === srId);
+      if (!sr) {
+        sr = { id: srId, title: (p.subroute && p.subroute.title) || '', pdvs: [] };
+        route.subroutes.push(sr);
+      }
+      sr.pdvs.push(p);
+    });
+    return Array.from(map.values());
   }
 
   function findPdvById(id) {
