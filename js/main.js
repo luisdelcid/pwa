@@ -211,7 +211,7 @@
   // ---------------------------------------------------------------------------
   const store = {
     catalogs: { version: 1, fields: [] },
-    pdvsAll: [],
+    routesAll: [],
     online: navigator.onLine,
     counts: { pending: 0, synced: 0 },
   };
@@ -278,7 +278,7 @@
     /**
      * Descarga PDVs desde API.
      */
-    async function fetchPdvsAll() {
+    async function fetchRoutesAll() {
       const base = trimSlash(getApiBase());
       const jwt = localStorage.getItem('jwt') || '';
 
@@ -294,25 +294,25 @@
     }
 
   /**
-   * Descarga y persiste en IndexedDB los catálogos + PDVs.
+   * Descarga y persiste en IndexedDB los catálogos + rutas.
    */
   async function bootstrapData() {
     const catalogs = await fetchCatalogs();
     await idb.put('appdata', { key: 'catalogs', value: catalogs, ts: Date.now() });
 
-    const pdvsAll = await fetchPdvsAll();
-    await idb.put('appdata', { key: 'pdvs_all', value: pdvsAll, ts: Date.now() });
+    const routesAll = await fetchRoutesAll();
+    await idb.put('appdata', { key: 'routes_all', value: routesAll, ts: Date.now() });
   }
 
   /**
-   * Carga desde IndexedDB a memoria (store) los catálogos + PDVs.
+   * Carga desde IndexedDB a memoria (store) los catálogos + rutas.
    */
   async function loadCached() {
     const c = await idb.get('appdata', 'catalogs');
-    const p = await idb.get('appdata', 'pdvs_all');
+    const p = await idb.get('appdata', 'routes_all');
 
     store.catalogs = (c && c.value) || { version: 1, fields: [] };
-    store.pdvsAll = (p && p.value) || [];
+    store.routesAll = (p && p.value) || [];
   }
 
   /**
@@ -364,10 +364,15 @@
    * Actualiza el status de un PDV en el array en memoria y persiste en IDB.
    */
   function setPDVStatusLocal(pdvId, status) {
-    const idx = store.pdvsAll.findIndex((p) => String(p.id) === String(pdvId));
-    if (idx >= 0) {
-      store.pdvsAll[idx].status = status;
-      idb.put('appdata', { key: 'pdvs_all', value: store.pdvsAll, ts: Date.now() });
+    for (const r of store.routesAll) {
+      for (const sr of r.subroutes || []) {
+        const idx = sr.pdvs.findIndex((p) => String(p.id) === String(pdvId));
+        if (idx >= 0) {
+          sr.pdvs[idx].status = status;
+          idb.put('appdata', { key: 'routes_all', value: store.routesAll, ts: Date.now() });
+          return;
+        }
+      }
     }
   }
 
@@ -379,6 +384,25 @@
     const done = list.filter((p) => p.status === 'filled' || p.status === 'synced').length;
     const pct = total ? Math.round((done / total) * 100) : 0;
     return { total, done, pct };
+  }
+
+  function pdvsFromRoute(route) {
+    const out = [];
+    (route.subroutes || []).forEach((sr) => {
+      (sr.pdvs || []).forEach((p) => out.push(p));
+    });
+    return out;
+  }
+
+  function findPdvById(id) {
+    for (const r of store.routesAll) {
+      for (const sr of r.subroutes || []) {
+        for (const p of sr.pdvs || []) {
+          if (String(p.id) === String(id)) return { pdv: p, route: r, subroute: sr };
+        }
+      }
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------------------
@@ -485,26 +509,15 @@
 
     await loadCached();
 
-    if (!store.pdvsAll.length) {
+    if (!store.routesAll.length) {
       try {
         await bootstrapData();
         await loadCached();
       } catch (e) {}
     }
 
-    const routeMap = new Map();
-    for (const p of store.pdvsAll) {
-      if (p.route && p.route.id) {
-        const id = String(p.route.id);
-        if (!routeMap.has(id)) {
-          routeMap.set(id, { title: p.route.title || ('Ruta ' + p.route.id), pdvs: [] });
-        }
-        routeMap.get(id).pdvs.push(p);
-      }
-    }
-
-    const routes = Array.from(routeMap.entries())
-      .map(([id, info]) => ({ id, title: info.title, pdvs: info.pdvs }))
+    const routes = (store.routesAll || [])
+      .slice()
       .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
     $c.html(
@@ -519,7 +532,7 @@
       $list.append('<div class="list-group-item small text-muted">No hay rutas asignadas.</div>');
     } else {
       routes.forEach((r) => {
-        const prog = summarizeProgress(r.pdvs);
+        const prog = summarizeProgress(pdvsFromRoute(r));
         const $i = $('<div/>')
           .addClass('list-group-item list-group-item-action')
           .attr('data-id', r.id)
@@ -548,7 +561,7 @@
 
     await loadCached();
 
-    if (!store.pdvsAll.length) {
+    if (!store.routesAll.length) {
       try {
         await bootstrapData();
         await loadCached();
@@ -561,27 +574,25 @@
       return;
     }
 
-    const routePdvs = store.pdvsAll.filter(
-      (p) => String(p.route && p.route.id) === String(selectedRoute)
+    const route = (store.routesAll || []).find(
+      (r) => String(r.id) === String(selectedRoute)
     );
-    const routeTitle = routePdvs[0] && routePdvs[0].route ? routePdvs[0].route.title : 'Ruta ' + selectedRoute;
+    if (!route) {
+      location.hash = '#/routes';
+      return;
+    }
+
+    const routeTitle = route.title || ('Ruta ' + selectedRoute);
 
     const selectedSub = (query.subrouteId || '').trim();
 
-    const subrouteMap = new Map();
-    for (const p of routePdvs) {
-      if (p.subroute && p.subroute.id) {
-        subrouteMap.set(String(p.subroute.id), p.subroute.title || p.subroute.id);
-      }
-    }
-
-    const subOptions = Array.from(subrouteMap.entries())
-      .map(([id, title]) => ({ id, title }))
+    const subOptions = (route.subroutes || [])
+      .map((s) => ({ id: String(s.id), title: s.title }))
       .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
-    const filtered = routePdvs.filter(
-      (p) => !selectedSub || String(p.subroute && p.subroute.id) === String(selectedSub)
-    );
+    const filtered = selectedSub
+      ? ((route.subroutes || []).find((s) => String(s.id) === String(selectedSub)) || { pdvs: [] }).pdvs
+      : pdvsFromRoute(route);
 
     const prog = summarizeProgress(filtered);
 
@@ -596,7 +607,7 @@
         '<div class="d-flex align-items-center mb-2">' +
           '<h5 class="m-0">' + routeTitle + '</h5>' +
           '<div class="ml-auto d-flex align-items-center">' +
-            '<label class="mr-2 mb-0 small text-muted">Día</label>' +
+            '<label class="mr-2 mb-0 small text-muted">Sub-ruta</label>' +
             '<select class="form-control form-control-sm" id="subroute-filter" style="min-width:220px"></select>' +
           '</div>' +
         '</div>' +
@@ -628,29 +639,26 @@
     function renderRows() {
       const $list = $('#pdv-list').empty();
       const term = ($('#pdv-search').val() || '').toLowerCase();
-      const rows = routePdvs.filter((p) => {
-        if (selectedSub && String(p.subroute && p.subroute.id) !== String(selectedSub)) return false;
-        if (term) {
-          const haystack = ((p.name || '') + ' ' + (p.address || '') + ' ' + (p.code || '')).toLowerCase();
-          if (!haystack.includes(term)) return false;
-        }
-        return true;
+      const groups = [];
+
+      (route.subroutes || []).forEach((sr) => {
+        if (selectedSub && String(sr.id) !== String(selectedSub)) return;
+        const items = sr.pdvs.filter((p) => {
+          if (term) {
+            const haystack = ((p.name || '') + ' ' + (p.address || '') + ' ' + (p.code || '')).toLowerCase();
+            if (!haystack.includes(term)) return false;
+          }
+          return true;
+        });
+        if (items.length) groups.push({ id: String(sr.id), title: sr.title, items });
       });
 
-      if (!rows.length) {
+      if (!groups.length) {
         $list.append('<div class="list-group-item small text-muted">No hay PDVs para el filtro seleccionado.</div>');
         return;
       }
 
-      const groups = new Map();
-      rows.forEach((p) => {
-        const id = String(p.subroute && p.subroute.id ? p.subroute.id : '');
-        const title = p.subroute && p.subroute.title ? p.subroute.title : '';
-        if (!groups.has(id)) groups.set(id, { title, items: [] });
-        groups.get(id).items.push(p);
-      });
-
-      Array.from(groups.values())
+      groups
         .sort((a, b) => (a.title || '').localeCompare(b.title || ''))
         .forEach((g) => {
           $list.append('<div class="list-group-item active">' + g.title + '</div>');
@@ -919,9 +927,10 @@
     await loadCached();
 
     const fields = store.catalogs.fields || [];
-    const pdv = (store.pdvsAll || []).find((x) => String(x.id) === String(pdvId));
-    const routeId = pdv && pdv.route ? pdv.route.id : '';
-    const routeTitle = pdv && pdv.route ? (pdv.route.title || ('Ruta ' + pdv.route.id)) : '';
+    const info = findPdvById(pdvId);
+    const pdv = info ? info.pdv : null;
+    const routeId = info ? info.route.id : '';
+    const routeTitle = info ? (info.route.title || ('Ruta ' + info.route.id)) : '';
 
     let answers = {};
     let step = 0;
