@@ -79,21 +79,19 @@
   -->
   <main class="app-main container-fluid" id="app-main" role="main" tabindex="-1"></main>
 
-  <!--
-    FOOTER
-    - Chips informativos: estado de conexión, pendientes, sincronizados
-    - Botón "Sincronizar" para forzar tryProcessQueue()
-  -->
-  <footer class="app-footer border-top">
-    <div class="container-fluid py-2">
-      <div class="d-flex align-items-center flex-wrap w-100">
-        <span class="badge badge-pill badge-success" id="chip-online">Online</span>
-        <a href="#/pending" class="ml-2 text-decoration-none"><span class="badge badge-pill badge-warning" id="chip-pending">Pend: 0</span></a>
-        <a href="#/synced" class="ml-2 text-decoration-none"><span class="badge badge-pill badge-primary" id="chip-synced">Sync: 0</span></a>
-        <button class="btn btn-sm btn-primary ml-auto" id="btn-sync-footer">Sincronizar</button>
+    <!--
+      FOOTER
+      - Chips informativos: estado de conexión, pendientes, sincronizados
+    -->
+    <footer class="app-footer border-top">
+      <div class="container-fluid py-2">
+        <div class="d-flex align-items-center justify-content-center flex-wrap w-100">
+          <span class="badge badge-pill badge-success" id="chip-online">Online</span>
+          <a href="#/pending" class="ml-2 text-decoration-none"><span class="badge badge-pill badge-warning" id="chip-pending">Pend: 0</span></a>
+          <a href="#/synced" class="ml-2 text-decoration-none"><span class="badge badge-pill badge-primary" id="chip-synced">Sync: 0</span></a>
+        </div>
       </div>
-    </div>
-  </footer>
+    </footer>
 
   <!-- Dependencias JS (CDN oficiales) -->
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" crossorigin="anonymous"></script>

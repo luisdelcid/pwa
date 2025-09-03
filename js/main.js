@@ -1231,22 +1231,37 @@
 
     const rows = (await idb.all('responses')).filter((x) => x.status !== 'synced');
 
-    $c.html('<div class="container py-3"><h5>Pendientes</h5><div id="list" class="list-group"></div></div>');
+    $c.html(
+      '<div class="container py-3">' +
+        '<div class="d-flex align-items-center mb-2">' +
+          '<h5 class="m-0">Pendientes</h5>' +
+          '<button class="btn btn-primary ml-auto" id="btn-sync">Sincronizar</button>' +
+        '</div>' +
+        '<div id="list" class="list-group"></div>' +
+      '</div>'
+    );
 
     const $list = $('#list');
+    const $btn = $('#btn-sync');
+    $btn.prop('disabled', !rows.length);
+
     if (!rows.length) {
       $list.html('<div class="text-muted small">No hay registros.</div>');
-      return;
-    }
+    } else {
+      rows.forEach((r) => {
+        $list.append(
+          '<div class="list-group-item d-flex justify-content-between">' +
+            '<div>PDV: ' + r.pdvId + '</div>' +
+            '<small>' + new Date(r.createdAt).toLocaleString() + '</small>' +
+          '</div>'
+        );
+      });
 
-    rows.forEach((r) => {
-      $list.append(
-        '<div class="list-group-item d-flex justify-content-between">' +
-          '<div>PDV: ' + r.pdvId + '</div>' +
-          '<small>' + new Date(r.createdAt).toLocaleString() + '</small>' +
-        '</div>'
-      );
-    });
+      $btn.on('click', async function () {
+        await tryProcessQueue();
+        navigateTo('#/pending');
+      });
+    }
   }
 
   /**
@@ -1377,7 +1392,6 @@
     updateAuthIcon();
   });
 
-  $(document).on('click', '#btn-sync-footer', function () { location.hash = '#/sync'; });
 
   // Estado inicial de breadcrumbs en DOM ready
   $(function () {
