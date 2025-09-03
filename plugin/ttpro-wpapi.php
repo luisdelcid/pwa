@@ -445,11 +445,7 @@ class TTPro_Api {
         ],
       ]);
       if (!$route_id || is_wp_error($route_id)) continue;
-      MB_Relationships_API::add([
-        'id'   => 'route_to_user',
-        'from' => $route_id,
-        'to'   => $user_id,
-      ]);
+      MB_Relationships_API::add('route_to_user', $route_id, $user_id);
       $routes_created++;
 
       for ($j=1; $j<=$pdvs_n; $j++) {
@@ -474,11 +470,7 @@ class TTPro_Api {
           ],
         ]);
         if ($ok && !is_wp_error($ok)) {
-          MB_Relationships_API::add([
-            'id'   => 'route_to_pdv',
-            'from' => $route_id,
-            'to'   => $ok,
-          ]);
+          MB_Relationships_API::add('route_to_pdv', $route_id, $ok);
           $pdvs_created++;
         }
       }
