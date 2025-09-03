@@ -17,7 +17,7 @@
   // Constantes base de la aplicación
   // ---------------------------------------------------------------------------
   const BRAND = 'Todo Terreno PRO';
-  const API_BASE_DEFAULT = 'https://todoterreno.prueba.in';
+  const API_BASE = 'https://todoterreno.prueba.in';
   const IDBVER = 7; // Versión del esquema de IndexedDB
 
   // ---------------------------------------------------------------------------
@@ -25,10 +25,10 @@
   // ---------------------------------------------------------------------------
 
   /**
-   * Obtiene la base de la API desde localStorage o usa la predeterminada.
+   * Obtiene la base fija de la API.
    */
   function getApiBase() {
-    return (localStorage.getItem('apiBase') || '').trim() || API_BASE_DEFAULT;
+    return API_BASE;
   }
 
   /**
@@ -464,7 +464,6 @@
               '<label class="compact-label">Contraseña</label>' +
               '<input type="password" class="form-control" id="pass">' +
             '</div>' +
-            '<div class="small text-muted mb-2">Servidor: ' + getApiBase() + '</div>' +
             '<div class="text-danger small mb-2" id="login-error"></div>' +
             '<button class="btn btn-primary btn-block" id="btn-login">Entrar</button>' +
           '</div>' +
@@ -1306,15 +1305,7 @@
         '<h5>Ajustes</h5>' +
         '<div class="card card-tap mb-3">' +
           '<div class="card-body">' +
-            '<div class="form-group">' +
-              '<label>API Base</label>' +
-              '<input type="url" id="opt-api" class="form-control" placeholder="https://todoterreno.prueba.in">' +
-              '<small class="form-text text-muted">Edita solo si cambias de dominio.</small>' +
-            '</div>' +
-
             '<div class="d-flex flex-wrap">' +
-              '<button class="btn btn-outline-success mr-2 mb-2" id="btn-save-api">Guardar API Base</button>' +
-              '<button class="btn btn-outline-secondary mr-2 mb-2" id="btn-reset-api">Restablecer a predeterminado</button>' +
               '<button class="btn btn-outline-secondary mr-2 mb-2" id="btn-update-app">Actualizar app</button>' +
               '<button class="btn btn-outline-danger mr-2 mb-2" id="btn-clear-cache">Limpiar caché</button>' +
               '<button class="btn btn-outline-warning mr-2 mb-2" id="btn-clear-idb">Borrar base local</button>' +
@@ -1324,25 +1315,6 @@
         '</div>' +
       '</div>'
     );
-
-    // Valor actual de API Base
-    $('#opt-api').val(localStorage.getItem('apiBase') || 'https://todoterreno.prueba.in');
-
-    // Guardar API Base
-    $('#btn-save-api').on('click', function () {
-      const v = ($('#opt-api').val() || '').trim();
-      if (!v) return alert('Ingresa una URL');
-      localStorage.setItem('apiBase', v);
-      alert('Guardado.');
-    });
-
-    // Restablecer API Base
-    $('#btn-reset-api').on('click', function () {
-      localStorage.removeItem('apiBase');
-      $('#opt-api').val('https://todoterreno.prueba.in');
-      alert('Restablecido.');
-    });
-
     // Forzar actualización de Service Worker
     $('#btn-update-app').on('click', async function () {
       const reg = await navigator.serviceWorker.getRegistration('./');
