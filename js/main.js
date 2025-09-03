@@ -1233,11 +1233,9 @@
 
     $c.html(
       '<div class="container py-3">' +
-        '<div class="d-flex align-items-center mb-2">' +
-          '<h5 class="m-0">Pendientes</h5>' +
-          '<button class="btn btn-primary ml-auto" id="btn-sync">Sincronizar</button>' +
-        '</div>' +
-        '<div id="list" class="list-group"></div>' +
+        '<h5 class="mb-2">Pendientes</h5>' +
+        '<div id="list" class="list-group mb-3"></div>' +
+        '<button class="btn btn-primary btn-block" id="btn-sync">Sincronizar</button>' +
       '</div>'
     );
 
