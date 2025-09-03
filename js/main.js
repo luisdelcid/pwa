@@ -1308,7 +1308,6 @@
             '<div class="d-flex flex-wrap">' +
               '<button class="btn btn-outline-secondary mr-2 mb-2" id="btn-update-app">Actualizar app</button>' +
               '<button class="btn btn-outline-danger mr-2 mb-2" id="btn-clear-cache">Limpiar caché</button>' +
-              '<button class="btn btn-outline-warning mr-2 mb-2" id="btn-clear-idb">Borrar base local</button>' +
               '<button class="btn btn-outline-primary mr-2 mb-2" id="btn-go-home">Ir al inicio</button>' +
             '</div>' +
           '</div>' +
@@ -1332,19 +1331,6 @@
         for (const k of ks) await caches.delete(k);
       }
       alert('Caché limpiada. Recarga la app.');
-    });
-
-    // Borrar base de datos local (IndexedDB)
-    $('#btn-clear-idb').on('click', async function () {
-      try {
-        await new Promise((r) => {
-          const req = indexedDB.deleteDatabase('tt_pro_bs_db');
-          req.onsuccess = req.onerror = req.onblocked = () => r();
-        });
-        alert('Base local borrada. Recarga la app.');
-      } catch (e) {
-        alert('Error: ' + e.message);
-      }
     });
 
     // Ir a inicio dependiendo de si hay sesión
