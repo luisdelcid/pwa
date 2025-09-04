@@ -12,6 +12,8 @@ class TTPro_Api {
     add_action('init',               [$this,'register_cpts']);
     add_action('rest_api_init',      [$this,'register_routes']);
     add_action('mb_relationships_init', [$this,'register_relationships']);
+    add_filter('mb_settings_pages',  [$this,'register_settings_pages']);
+    add_filter('rwmb_meta_boxes',    [$this,'register_settings_fields']);
   }
 
   /* ===================== CPTs ===================== */
@@ -92,6 +94,102 @@ class TTPro_Api {
             ],
         ]);
     }
+
+  public function register_settings_pages( $settings_pages ) {
+    $settings_pages[] = [
+      'id'          => 'ttpro_catalogs',
+      'option_name' => 'ttpro_catalogs',
+      'menu_title'  => 'TT Pro Catálogos',
+      'parent'      => 'options-general.php',
+    ];
+    return $settings_pages;
+  }
+
+  public function register_settings_fields( $meta_boxes ) {
+    $meta_boxes[] = [
+      'id'             => 'ttpro_catalogs_fields',
+      'title'          => 'Preguntas del formulario',
+      'settings_pages' => 'ttpro_catalogs',
+      'fields'         => [
+        [
+          'id'         => 'questions',
+          'type'       => 'group',
+          'clone'      => true,
+          'sort_clone' => true,
+          'add_button' => 'Agregar pregunta',
+          'fields'     => [
+            [
+              'id'   => 'qid',
+              'name' => 'ID',
+              'type' => 'text',
+            ],
+            [
+              'id'   => 'qlabel',
+              'name' => 'Etiqueta',
+              'type' => 'text',
+            ],
+            [
+              'id'      => 'qtype',
+              'name'    => 'Tipo',
+              'type'    => 'select',
+              'options' => [
+                'text'     => 'Text',
+                'textarea' => 'Textarea',
+                'radio'    => 'Radio',
+                'photo'    => 'Photo',
+                'geo'      => 'Geo',
+              ],
+              'std'     => 'text',
+            ],
+            [
+              'id'   => 'required',
+              'name' => 'Requerido',
+              'type' => 'checkbox',
+            ],
+            [
+              'id'         => 'options',
+              'name'       => 'Opciones',
+              'type'       => 'group',
+              'clone'      => true,
+              'add_button' => 'Agregar opción',
+              'fields'     => [
+                [
+                  'id'   => 'opt_value',
+                  'name' => 'Valor',
+                  'type' => 'text',
+                ],
+                [
+                  'id'   => 'opt_label',
+                  'name' => 'Etiqueta',
+                  'type' => 'text',
+                ],
+              ],
+            ],
+            [
+              'id'         => 'show_if',
+              'name'       => 'Mostrar si',
+              'type'       => 'group',
+              'clone'      => true,
+              'add_button' => 'Agregar condición',
+              'fields'     => [
+                [
+                  'id'   => 'cond_id',
+                  'name' => 'ID',
+                  'type' => 'text',
+                ],
+                [
+                  'id'   => 'cond_value',
+                  'name' => 'Valor',
+                  'type' => 'text',
+                ],
+              ],
+            ],
+          ],
+        ],
+      ],
+    ];
+    return $meta_boxes;
+  }
 
   /* ===================== Helpers ===================== */
   private function current_user_id_jwt() {
@@ -188,83 +286,49 @@ class TTPro_Api {
       'methods'  => 'GET',
       'permission_callback' => function() { return current_user_can('read'); },
       'callback' => function($req) {
+        $questions = mb_get_option('questions', 'ttpro_catalogs');
+        if (!is_array($questions)) {
+          $questions = [];
+        }
+
+        $fields = [];
+        foreach ($questions as $q) {
+          $field = [
+            'id'       => isset($q['qid']) ? $q['qid'] : '',
+            'label'    => isset($q['qlabel']) ? $q['qlabel'] : '',
+            'type'     => isset($q['qtype']) ? $q['qtype'] : 'text',
+            'required' => !empty($q['required']),
+          ];
+
+          if (!empty($q['options']) && is_array($q['options'])) {
+            $field['options'] = array_map(function ($opt) {
+              return [
+                'value' => isset($opt['opt_value']) ? $opt['opt_value'] : '',
+                'label' => isset($opt['opt_label']) ? $opt['opt_label'] : '',
+              ];
+            }, $q['options']);
+          }
+
+          if (!empty($q['show_if']) && is_array($q['show_if'])) {
+            $conds = array_map(function ($cond) {
+              return [
+                'id'    => isset($cond['cond_id']) ? $cond['cond_id'] : '',
+                'value' => isset($cond['cond_value']) ? $cond['cond_value'] : '',
+              ];
+            }, $q['show_if']);
+            if (count($conds) === 1) {
+              $field['show_if'] = $conds[0];
+            } elseif (count($conds) > 1) {
+              $field['show_if'] = $conds;
+            }
+          }
+
+          $fields[] = $field;
+        }
+
         return [
           'version' => 2,
-          'fields' => [
-            ['id'=>'accion','label'=>'Acción a ejecutar','type'=>'radio','required'=>true,'options'=>[
-              ['value'=>'validar','label'=>'Validar'],
-              ['value'=>'eliminar','label'=>'Eliminar'],
-            ]],
-            ['id'=>'motivo','label'=>'Motivo por el que se elimina','type'=>'text','required'=>false,'show_if'=>['id'=>'accion','value'=>'eliminar']],
-            ['id'=>'actualizar','label'=>'Actualizar nombre y dirección','type'=>'radio','required'=>true,'options'=>[
-              ['value'=>'si','label'=>'Sí'],
-              ['value'=>'no','label'=>'No'],
-            ],'show_if'=>['id'=>'accion','value'=>'validar']],
-            ['id'=>'nombre','label'=>'Nombre','type'=>'text','required'=>false,'show_if'=>['id'=>'actualizar','value'=>'si']],
-            ['id'=>'direccion','label'=>'Dirección','type'=>'textarea','required'=>false,'show_if'=>['id'=>'actualizar','value'=>'si']],
-            ['id'=>'foto','label'=>'Foto','type'=>'photo','required'=>true],
-            ['id'=>'ubicacion','label'=>'Ubicación','type'=>'geo','required'=>false],
-            ['id'=>'canal','label'=>'Canal del PDV','type'=>'radio','required'=>true,'options'=>[
-              ['value'=>'detalle','label'=>'Detalle'],
-              ['value'=>'mayorista','label'=>'Mayorista'],
-              ['value'=>'super_tradicional','label'=>'Supermercados tradicional'],
-            ]],
-            ['id'=>'canal_detalle','label'=>'Etiqueta del canal detalle','type'=>'radio','required'=>false,'options'=>[
-              ['value'=>'reposterias','label'=>'Reposterías'],
-              ['value'=>'restaurante','label'=>'Restaurante'],
-              ['value'=>'restaurante_de_paso','label'=>'Restaurante de paso'],
-              ['value'=>'salon_de_bellezas','label'=>'Salón de bellezas'],
-              ['value'=>'tiendas_barrotes_externos','label'=>'Tiendas con barrotes externos'],
-              ['value'=>'tiendas_barrotes_internos','label'=>'Tiendas con barrotes internos'],
-              ['value'=>'tiendas_verdureria','label'=>'Tiendas con verdurería'],
-              ['value'=>'tiendas_caseta','label'=>'Tiendas con caseta'],
-              ['value'=>'tiendas_mascotas','label'=>'Tiendas de mascotas'],
-              ['value'=>'tiendas_mercado','label'=>'Tiendas de mercado'],
-              ['value'=>'tiendas_mostrador','label'=>'Tiendas de mostrador'],
-              ['value'=>'tiendas_ventana','label'=>'Tiendas de ventana'],
-              ['value'=>'veterinarias','label'=>'Veterinarias'],
-            ],'show_if'=>['id'=>'canal','value'=>'detalle']],
-            ['id'=>'canal_mayorista','label'=>'Etiqueta del canal mayorista','type'=>'radio','required'=>false,'options'=>[
-              ['value'=>'mayorista_puro','label'=>'Mayorista puro'],
-              ['value'=>'semi_mayoreo','label'=>'Semi mayoreo'],
-              ['value'=>'mayoreo_autoservicios','label'=>'Mayoreo con autoservicios'],
-            ],'show_if'=>['id'=>'canal','value'=>'mayorista']],
-            ['id'=>'canal_super','label'=>'Etiqueta del canal supermercados tradicional','type'=>'radio','required'=>false,'options'=>[
-              ['value'=>'super_independientes','label'=>'Supermercados independientes'],
-              ['value'=>'mini_markets','label'=>'Mini markets'],
-              ['value'=>'food_shops','label'=>'Food shops'],
-            ],'show_if'=>['id'=>'canal','value'=>'super_tradicional']],
-            ['id'=>'tamano','label'=>'Tamaño del PDV','type'=>'radio','required'=>true,'options'=>[
-              ['value'=>'grande','label'=>'Grande'],
-              ['value'=>'mediano','label'=>'Mediano'],
-              ['value'=>'pequeno','label'=>'Pequeño'],
-            ]],
-            ['id'=>'puertas_frio','label'=>'Cantidad de puertas en frío','type'=>'radio','required'=>true,'options'=>[
-              ['value'=>'0-5','label'=>'0-5'],
-              ['value'=>'6-11','label'=>'6-11'],
-              ['value'=>'12+','label'=>'12 en adelante'],
-            ]],
-            ['id'=>'congeladores','label'=>'Cantidad de congeladores','type'=>'radio','required'=>true,'options'=>[
-              ['value'=>'0','label'=>'Ninguno, solo el de mi refri'],
-              ['value'=>'1','label'=>'1'],
-              ['value'=>'2','label'=>'2'],
-              ['value'=>'3','label'=>'3'],
-              ['value'=>'4','label'=>'4'],
-              ['value'=>'5+','label'=>'Más de 5'],
-            ]],
-            ['id'=>'botellas','label'=>'Vende botellas de licor 750 ml (ejemplo XL, Ron Botrán, Quetzalteca u otras)','type'=>'radio','required'=>true,'options'=>[
-              ['value'=>'si','label'=>'Sí'],
-              ['value'=>'no','label'=>'No'],
-            ]],
-            ['id'=>'mascotas','label'=>'Vende alimentos para mascotas a granel libreado directamente del saco','type'=>'radio','required'=>true,'options'=>[
-              ['value'=>'si','label'=>'Sí'],
-              ['value'=>'no','label'=>'No'],
-            ]],
-            ['id'=>'cigarros','label'=>'Vende cigarros','type'=>'radio','required'=>true,'options'=>[
-              ['value'=>'si','label'=>'Sí'],
-              ['value'=>'no','label'=>'No'],
-            ]],
-          ]
+          'fields'  => $fields,
         ];
       }
     ]);
