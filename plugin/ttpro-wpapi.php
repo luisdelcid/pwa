@@ -101,6 +101,7 @@ class TTPro_Api {
       'option_name' => 'ttpro_catalogs',
       'menu_title'  => 'TT Pro Catálogos',
       'parent'      => 'options-general.php',
+      'columns' => 1,
     ];
     return $settings_pages;
   }
@@ -164,6 +165,7 @@ class TTPro_Api {
                   'type' => 'text',
                 ],
               ],
+              'visible' => [ 'qtype', 'radio' ],
             ],
             [
               'id'         => 'show_if',
@@ -286,7 +288,7 @@ class TTPro_Api {
       'methods'  => 'GET',
       'permission_callback' => function() { return current_user_can('read'); },
       'callback' => function($req) {
-        $questions = mb_get_option('questions', 'ttpro_catalogs');
+        $questions = rwmb_meta('questions', ['object_type' => 'setting'], 'ttpro_catalogs' );
         if (!is_array($questions)) {
           $questions = [];
         }
@@ -343,13 +345,6 @@ class TTPro_Api {
           if (!$user_id) return new WP_Error('tt_no_user','No autenticado', ['status'=>401]);
 
           // Rutas principales asignadas al usuario
-          /*$routes = get_posts([
-            'post_type'   => 'tt_route',
-            'numberposts' => -1,
-            'post_status' => 'any',
-            'post_parent' => 0,
-            'meta_query'  => [[ 'key'=>'tt_route_user','value'=>$user_id,'compare'=>'=' ]],
-          ]);*/
           $routes = MB_Relationships_API::get_connected([
               'id' => 'users_to_routes',
               'from' => $user_id,
@@ -372,12 +367,6 @@ class TTPro_Api {
             ]);
 
             foreach ($subs as $s) {
-              /*$pdvs = get_posts([
-                'post_type'  => 'tt_pdv',
-                'numberposts'=> -1,
-                'post_status'=> 'any',
-                'meta_query' => [[ 'key'=>'tt_pdv_route','value'=>$s->ID,'compare'=>'=' ]],
-              ]);*/
               $pdvs = MB_Relationships_API::get_connected([
                     'id' => 'routes_to_pdvs',
                     'from' => $s->ID,
