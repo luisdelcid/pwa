@@ -39,9 +39,20 @@ class TTPro_Api {
       'show_in_rest' => false,
       'menu_position'=> 26,
     ]);
+
+    register_post_type('tt_sede', [
+      'label'        => 'Sedes',
+      /*'public'       => false,
+      'show_ui'      => true,*/
+      'public'       => true,
+      'supports'     => ['title','author','custom-fields'],
+      'show_in_rest' => false,
+      'menu_position'=> 27,
+    ]);
   }
 
     public function register_relationships() {
+
         MB_Relationships_API::register([
             'id' => 'users_to_routes',
             'from' => [
@@ -52,6 +63,7 @@ class TTPro_Api {
                     ],
                 ],
                 'meta_box' => [
+                    'title' => 'Rutas',
                     'include' => [
                         'edited_user_role' => 'author',
                     ],
@@ -66,12 +78,72 @@ class TTPro_Api {
                     ],
                 ],
                 'meta_box' => [
+                    'title' => 'Vendedores',
                     'include' => [
                         'is_child' => false,
                     ],
                 ],
             ],
         ]);
+
+        MB_Relationships_API::register([
+            'id' => 'supervisores_to_routes',
+            'from' => [
+                'object_type' => 'user',
+                'field' => [
+                    'query_args' => [
+                        'role' => 'editor',
+                    ],
+                ],
+                'meta_box' => [
+                    'title' => 'Rutas',
+                    'include' => [
+                        'edited_user_role' => 'editor',
+                    ],
+                ],
+            ],
+            'to' => [
+                'object_type' => 'post',
+                'post_type' => 'tt_route',
+                'field' => [
+                    'query_args' => [
+                        'post_parent' => 0,
+                    ],
+                ],
+                'meta_box' => [
+                    'title' => 'Supervisores',
+                    'include' => [
+                        'is_child' => false,
+                    ],
+                ],
+            ],
+        ]);
+
+        MB_Relationships_API::register([
+            'id' => 'supervisores_to_sedes',
+            'from' => [
+                'object_type' => 'user',
+                'field' => [
+                    'query_args' => [
+                        'role' => 'editor',
+                    ],
+                ],
+                'meta_box' => [
+                    'title' => 'Sedes',
+                    'include' => [
+                        'edited_user_role' => 'editor',
+                    ],
+                ],
+            ],
+            'to' => [
+                'object_type' => 'post',
+                'post_type' => 'tt_sede',
+                'meta_box' => [
+                    'title' => 'Supervisores',
+                ],
+            ],
+        ]);
+
         MB_Relationships_API::register([
             'id' => 'routes_to_pdvs',
             'from' => [
@@ -83,6 +155,7 @@ class TTPro_Api {
                     ],
                 ],
                 'meta_box' => [
+                    'title' => 'Puntos de venta',
                     'include' => [
                         'is_child' => true,
                     ],
@@ -91,8 +164,12 @@ class TTPro_Api {
             'to' => [
                 'object_type' => 'post',
                 'post_type' => 'tt_pdv',
+                'meta_box' => [
+                    'title' => 'Día de visita',
+                ],
             ],
         ]);
+
     }
 
   public function register_settings_pages( $settings_pages ) {
@@ -287,8 +364,12 @@ class TTPro_Api {
     register_rest_route('myapp/v1', '/catalogs', [
       'methods'  => 'GET',
       'permission_callback' => function() { return current_user_can('read'); },
+      //'permission_callback' => '__return_true',
       'callback' => function($req) {
+        //$questions = mb_get_option('questions', 'ttpro_catalogs');
         $questions = rwmb_meta('questions', ['object_type' => 'setting'], 'ttpro_catalogs' );
+        //$questions = get_option('ttpro_catalogs', []);
+        //return $questions;
         if (!is_array($questions)) {
           $questions = [];
         }
@@ -345,10 +426,32 @@ class TTPro_Api {
           if (!$user_id) return new WP_Error('tt_no_user','No autenticado', ['status'=>401]);
 
           // Rutas principales asignadas al usuario
-          $routes = MB_Relationships_API::get_connected([
+          /*$routes = get_posts([
+            'post_type'   => 'tt_route',
+            'numberposts' => -1,
+            'post_status' => 'any',
+            'post_parent' => 0,
+            'meta_query'  => [[ 'key'=>'tt_route_user','value'=>$user_id,'compare'=>'=' ]],
+          ]);*/
+
+          if(current_user_can('editor')){
+              //supervisor
+              $routes = MB_Relationships_API::get_connected([
+                  'id' => 'supervisores_to_routes',
+                  'from' => $user_id,
+              ]);
+          } elseif(current_user_can('author')){
+              //vendedor
+              $routes = MB_Relationships_API::get_connected([
+                  'id' => 'users_to_routes',
+                  'from' => $user_id,
+              ]);
+          }
+
+          /*$routes = MB_Relationships_API::get_connected([
               'id' => 'users_to_routes',
               'from' => $user_id,
-          ]);
+          ]);*/
           if (!$routes) return [];
 
           $out = [];
@@ -367,6 +470,12 @@ class TTPro_Api {
             ]);
 
             foreach ($subs as $s) {
+              /*$pdvs = get_posts([
+                'post_type'  => 'tt_pdv',
+                'numberposts'=> -1,
+                'post_status'=> 'any',
+                'meta_query' => [[ 'key'=>'tt_pdv_route','value'=>$s->ID,'compare'=>'=' ]],
+              ]);*/
               $pdvs = MB_Relationships_API::get_connected([
                     'id' => 'routes_to_pdvs',
                     'from' => $s->ID,
