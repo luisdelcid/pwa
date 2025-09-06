@@ -567,7 +567,10 @@
           .html(
             '<div class="d-flex w-100 justify-content-between align-items-center">' +
               '<div class="font-weight-bold">' + r.title + '</div>' +
-              '<span class="badge badge-light">' + prog.done + '/' + prog.total + '</span>' +
+              '<div class="d-flex align-items-center">' +
+                '<span class="badge badge-light mr-2">' + prog.done + '/' + prog.total + '</span>' +
+                '<small class="text-muted">' + prog.pct + '%</small>' +
+              '</div>' +
             '</div>' +
             '<div class="progress thin mt-2"><div class="progress-bar" style="width:' + prog.pct + '%"></div></div>'
           );
