@@ -547,10 +547,23 @@
     const routes = (store.routesAll || [])
       .slice()
       .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    const allPdvs = [];
+    routes.forEach((r) => {
+      allPdvs.push(...pdvsFromRoute(r));
+    });
+    const overall = summarizeProgress(allPdvs);
 
     $c.html(
       '<div class="container py-3">' +
         '<h5 class="mb-3">Rutas</h5>' +
+        '<div class="mb-3">' +
+          '<div class="d-flex align-items-center mb-1">' +
+            '<small class="text-muted mr-2">Progreso</small>' +
+            '<span class="badge badge-light">' + overall.done + '/' + overall.total + '</span>' +
+            '<span class="ml-auto small text-muted">' + overall.pct + '%</span>' +
+          '</div>' +
+          '<div class="progress thin"><div class="progress-bar" style="width:' + overall.pct + '%"></div></div>' +
+        '</div>' +
         '<div class="list-group" id="route-list"></div>' +
       '</div>'
     );
