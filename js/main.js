@@ -712,8 +712,14 @@
     subOptions.forEach((s) => $sel.append('<option value="' + s.id + '">' + s.title + '</option>'));
     if (selectedSub) $sel.val(selectedSub);
 
+    const $list = $('#pdv-list');
+    $list.on('click', '.list-group-item', function () {
+      const id = $(this).data('id');
+      if (id) location.hash = '#/form?pdvId=' + encodeURIComponent(id);
+    });
+
     function renderRows() {
-      const $list = $('#pdv-list').empty();
+      $list.empty();
       const term = ($('#pdv-search').val() || '').toLowerCase();
       const groups = [];
 
@@ -741,6 +747,7 @@
           g.items.forEach((p) => {
             const $i = $('<div/>')
               .addClass('list-group-item list-group-item-action')
+              .attr('data-id', p.id)
               .html(
                 '<div class="d-flex w-100 justify-content-between align-items-start">' +
                   '<div>' +
@@ -748,9 +755,6 @@
                     '<div class="small text-muted">' + (p.address || '') + '</div>' +
                   '</div>' +
                   '<div>' + statusChip(p.status || 'pending') + '</div>' +
-                '</div>' +
-                '<div class="mt-2 d-flex">' +
-                  '<a href="#/form?pdvId=' + encodeURIComponent(p.id) + '" class="btn btn-sm btn-primary">Abrir</a>' +
                 '</div>'
               );
 
