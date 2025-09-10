@@ -478,7 +478,7 @@
 
     const offlineHint = (!navigator.onLine && localStorage.getItem('sessionActive') === '1')
       ? '<div class="alert alert-info offline-hint">Sin conexión. Puedes continuar en modo offline con la sesión previa.</div>' +
-        '<button class="btn btn-outline-primary btn-block mb-3" id="btn-offline">Entrar en modo offline</button>'
+        '<button class="btn btn-outline-primary btn-lg btn-block mb-3" id="btn-offline">Entrar en modo offline</button>'
       : '';
 
     $c.html(
@@ -489,14 +489,14 @@
             offlineHint +
             '<div class="form-group">' +
               '<label class="compact-label">Usuario</label>' +
-              '<input type="text" class="form-control" id="user">' +
+              '<input type="text" class="form-control form-control-lg" id="user">' +
             '</div>' +
             '<div class="form-group">' +
               '<label class="compact-label">Contraseña</label>' +
-              '<input type="password" class="form-control" id="pass">' +
+              '<input type="password" class="form-control form-control-lg" id="pass">' +
             '</div>' +
             '<div class="text-danger small mb-2" id="login-error"></div>' +
-            '<button class="btn btn-primary btn-block" id="btn-login">Entrar</button>' +
+            '<button class="btn btn-primary btn-lg btn-block" id="btn-login">Entrar</button>' +
           '</div>' +
         '</div>' +
       '</div>'
@@ -700,7 +700,7 @@
         '</div>' +
 
         '<div class="mb-3">' +
-          '<input type="text" class="form-control" id="pdv-search" placeholder="Buscar puntos de venta" />' +
+            '<input type="text" class="form-control form-control-lg" id="pdv-search" placeholder="Buscar puntos de venta" />' +
         '</div>' +
 
         '<div class="list-group" id="pdv-list"></div>' +
@@ -790,14 +790,14 @@
 
     // Controles (se muestran cuando corresponde)
     const $controls = $('<div class="camera-controls mt-2 d-flex justify-content-between" style="display:none"></div>');
-    const $btnShot = $('<button type="button" class="btn btn-primary" style="display:none">Capturar</button>');
-    const $btnRetake = $('<button type="button" class="btn btn-outline-warning" style="display:none">Repetir</button>');
+    const $btnShot = $('<button type="button" class="btn btn-primary btn-lg" style="display:none">Capturar</button>');
+    const $btnRetake = $('<button type="button" class="btn btn-outline-warning btn-lg" style="display:none">Repetir</button>');
 
     $controls.append($btnShot, $btnRetake);
 
     // Estado + botón principal
     const $status = $('<div class="small text-muted mt-2">Para iniciar, enciende la cámara.</div>');
-    const $btnStart = $('<button type="button" class="btn btn-outline-secondary">Encender cámara</button>');
+    const $btnStart = $('<button type="button" class="btn btn-outline-secondary btn-lg">Encender cámara</button>');
 
     $w.append($btnStart, $wrap, $controls, $status);
 
@@ -1049,7 +1049,7 @@
         '<div class="progress thin mb-3"><div class="progress-bar" id="progressbar" style="width:0%"></div></div>' +
         '<div id="form-body"></div>' +
         '<div class="sticky-actions mt-3">' +
-          '<button class="btn btn-primary btn-block" id="btn-next">Siguiente</button>' +
+          '<button class="btn btn-primary btn-lg btn-block" id="btn-next">Siguiente</button>' +
         '</div>' +
       '</div>'
     );
@@ -1071,20 +1071,20 @@
         return renderFieldCard(f, val, onChange);
       }
       if (f.type === 'textarea') {
-        const $ta = $('<textarea class="form-control" rows="5"></textarea>').val(val || '');
+    const $ta = $('<textarea class="form-control form-control-lg" rows="5"></textarea>').val(val || '');
         $ta.on('input', () => onChange($ta.val()));
         return $('<div class="mb-3"></div>')
           .append('<div class="form-step-title mb-2">' + f.label + '</div>')
           .append($ta);
       }
       if (f.type === 'number') {
-        const $num = $('<input type="number" inputmode="numeric" pattern="[0-9]*" class="form-control">').val(val || '');
+    const $num = $('<input type="number" inputmode="numeric" pattern="[0-9]*" class="form-control form-control-lg">').val(val || '');
         $num.on('input', () => onChange($num.val()));
         return $('<div class="mb-3"></div>')
           .append('<div class="form-step-title mb-2">' + f.label + '</div>')
           .append($num);
       }
-      const $in = $('<input type="text" class="form-control">').val(val || '');
+      const $in = $('<input type="text" class="form-control form-control-lg">').val(val || '');
       $in.on('input', () => onChange($in.val()));
       return $('<div class="mb-3"></div>')
         .append('<div class="form-step-title mb-2">' + f.label + '</div>')
@@ -1093,7 +1093,7 @@
 
     function geoUI(onChange) {
       const $w = $('<div class="mb-3"></div>');
-      const $b = $('<button class="btn btn-outline-primary btn-block" type="button">Obtener ubicación</button>');
+      const $b = $('<button class="btn btn-outline-primary btn-lg btn-block" type="button">Obtener ubicación</button>');
       const $o = $('<div class="small text-muted mt-2">Aún sin datos</div>');
 
       $b.on('click', () => {
@@ -1293,7 +1293,7 @@
       '<div class="container py-3">' +
         '<h5 class="mb-2">Pendientes</h5>' +
         '<div id="list" class="list-group mb-3"></div>' +
-        '<button class="btn btn-primary btn-block" id="btn-sync">Sincronizar</button>' +
+        '<button class="btn btn-primary btn-lg btn-block" id="btn-sync">Sincronizar</button>' +
       '</div>'
     );
 
@@ -1356,7 +1356,7 @@
       '<div class="container py-3">' +
         '<div class="d-flex align-items-center mb-2">' +
           '<h5 class="m-0">Sincronización</h5>' +
-          '<button class="btn btn-primary ml-auto" id="btn-sync">Sincronizar ahora</button>' +
+          '<button class="btn btn-primary btn-lg ml-auto" id="btn-sync">Sincronizar ahora</button>' +
         '</div>' +
         '<div class="card card-tap">' +
           '<div class="card-body">' +
@@ -1394,9 +1394,9 @@
         '<div class="card card-tap mb-3">' +
           '<div class="card-body">' +
             '<div class="d-flex flex-wrap">' +
-              '<button class="btn btn-outline-secondary mr-2 mb-2" id="btn-update-app">Actualizar app</button>' +
-              '<button class="btn btn-outline-danger mr-2 mb-2" id="btn-clear-cache">Limpiar caché</button>' +
-              '<button class="btn btn-outline-primary mr-2 mb-2" id="btn-go-home">Ir al inicio</button>' +
+              '<button class="btn btn-outline-secondary btn-lg mr-2 mb-2" id="btn-update-app">Actualizar app</button>' +
+              '<button class="btn btn-outline-danger btn-lg mr-2 mb-2" id="btn-clear-cache">Limpiar caché</button>' +
+              '<button class="btn btn-outline-primary btn-lg mr-2 mb-2" id="btn-go-home">Ir al inicio</button>' +
             '</div>' +
           '</div>' +
         '</div>' +
