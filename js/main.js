@@ -607,6 +607,7 @@
         updateAuthIcon();
 
         location.hash = '#/routes';
+        location.reload();
       } catch (e) {
         $('#login-error').text('Error de login/bootstrap: ' + (e.message || e));
       }
