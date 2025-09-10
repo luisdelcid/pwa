@@ -114,6 +114,13 @@
       $c.html('<div class="alert alert-danger m-3">Error al renderizar: ' + (e.message || e) + '</div>');
       console.error(e);
     }
+
+    // Guarda la última ruta visitada para restaurarla al reiniciar la app.
+    if (path !== '/') {
+      localStorage.setItem('lastPath', location.hash);
+    } else {
+      localStorage.removeItem('lastPath');
+    }
   }
 
   // Re-render cuando cambia el hash
@@ -362,7 +369,16 @@
     await loadCached();
     setOnlineUI();
     await refreshCounts();
-    navigateTo();
+
+    // Si hay sesión previa, restaurar la última ruta visitada o ir a rutas.
+    const lastPath = localStorage.getItem('lastPath');
+    if (hasSession() && lastPath) {
+      navigateTo(lastPath);
+    } else if (hasSession() && (!location.hash || location.hash === '#/')) {
+      navigateTo('#/routes');
+    } else {
+      navigateTo();
+    }
   })();
 
   // ---------------------------------------------------------------------------
