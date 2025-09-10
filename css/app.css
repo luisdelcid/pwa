@@ -147,7 +147,7 @@ input.select-hidden:checked + label.select-card {
  *     <div class="card-body p-2"><div class="title">…</div></div>
  *   </label>
  * ============================= */
-:root { --primary: #007bff; } /* usa tu color de marca */
+:root { --primary: #ffffff; } /* usa tu color de marca */
 
 label.select-card{
   width:100%;
