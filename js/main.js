@@ -3,7 +3,7 @@
 
   /**
    * =============================================================
-   *  PWA "Todo Terreno PRO" — main.js (versión expandida y documentada)
+   *  PWA "TT Censo 2025" — main.js (versión expandida y documentada)
    * =============================================================
    *
    * Nota del autor: Este archivo es una versión *sin cambios de lógica*,
@@ -16,7 +16,8 @@
   // ---------------------------------------------------------------------------
   // Constantes base de la aplicación
   // ---------------------------------------------------------------------------
-  const BRAND = 'Todo Terreno PRO';
+  const BRAND = 'TT Censo 2025';
+  const APP_VERSION = '5.9.0';
   const API_BASE = 'https://todoterreno.prueba.in';
   const IDBVER = 7; // Versión del esquema de IndexedDB
 
@@ -256,8 +257,8 @@
 
     store.counts = { pending, synced };
 
-    $('#chip-pending').text('Pend: ' + pending);
-    $('#chip-synced').text('Sync: ' + synced);
+    $('#chip-pending').text('Pendientes: ' + pending);
+    $('#chip-synced').text('Completados: ' + synced);
   }
 
     // ---------------------------------------------------------------------------
@@ -616,7 +617,7 @@
    * Devuelve HTML de chip de estado para un PDV.
    */
   function statusChip(s) {
-    if (s === 'synced') return '<span class="badge status synced">Sincronizado</span>';
+    if (s === 'synced') return '<span class="badge status synced">Completado</span>';
     if (s === 'filled') return '<span class="badge status filled">Lleno</span>';
     return '<span class="badge status pending">Pendiente</span>';
   }
@@ -835,11 +836,11 @@
    * Crea el widget mínimo de cámara (encender, capturar, repetir) y expone API.
    * No arranca la cámara automáticamente; requiere click del usuario.
    */
-  function buildCameraUI() {
+  function buildCameraUI(title) {
     const $w = $('<div class="mb-3"></div>');
 
     // Título de paso
-    $w.append('<div class="form-step-title mb-2">Fotografía (requerida)</div>');
+    $w.append($('<div class="form-step-title mb-2"></div>').text(title || ''));
 
     // Contenedores del preview
     const $wrap = $('<div class="camera-wrap mt-2"></div>');
@@ -1074,7 +1075,8 @@
     let answers = existingResp ? (existingResp.answers || {}) : {};
     let step = 0;
 
-    const cam = buildCameraUI();
+    const photoField = fields.find((f) => f.type === 'photo');
+    const cam = buildCameraUI(photoField ? (photoField.label + (photoField.required ? ' *' : '')) : '');
     let photoBlob = null;
 
     function shouldShowField(f) {
@@ -1121,7 +1123,7 @@
       const pct = total > 1 ? Math.round((step / (total - 1)) * 100) : 100;
       $('#progressbar').css('width', pct + '%');
       $('#step-label').text((step + 1) + '/' + total);
-      $('#btn-next').text(step === (total - 1) && step !== 0 ? 'Finalizar' : 'Siguiente');
+      $('#btn-next').text(step === (total - 1) && step !== 0 ? 'Completar' : 'Siguiente');
       if (field && field.required) {
         $('#btn-next').prop('disabled', !hasValue(field));
       } else {
@@ -1384,14 +1386,14 @@
   }
 
   /**
-   * Vista: Sincronizados
+   * Vista: Completados
    */
   async function renderSynced($c) {
-    setBreadcrumbs([{ label: 'Rutas', href: '#/routes' }, { label: 'Sincronizados', active: true }]);
+    setBreadcrumbs([{ label: 'Rutas', href: '#/routes' }, { label: 'Completados', active: true }]);
 
     const rows = (await idb.all('responses')).filter((x) => x.status === 'synced');
 
-    $c.html('<div class="container py-3"><h5>Sincronizados</h5><div id="list" class="list-group"></div></div>');
+    $c.html('<div class="container py-3"><h5>Completados</h5><div id="list" class="list-group"></div></div>');
 
     const $list = $('#list');
     if (!rows.length) {
@@ -1454,6 +1456,7 @@
     $c.html(
       '<div class="container py-3">' +
         '<h5>Ajustes</h5>' +
+        '<div class="text-muted small mb-3">Versión: ' + APP_VERSION + '</div>' +
             '<div class="card card-tap mb-3">' +
           '<div class="card-body">' +
             '<div class="d-flex flex-wrap">' +
