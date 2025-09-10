@@ -300,6 +300,60 @@
       return [];
     }
 
+    /**
+     * Descarga respuestas previamente sincronizadas del usuario.
+     */
+    async function fetchPreviousResponses() {
+      const base = trimSlash(getApiBase());
+      const jwt = localStorage.getItem('jwt') || '';
+
+      try {
+        if (base && jwt) {
+          const u = base + '/wp-json/myapp/v1/responses/mine';
+          const r = await fetch(u, { headers: { Authorization: 'Bearer ' + jwt } });
+          if (r.ok) return r.json();
+        }
+      } catch (e) {}
+
+      return [];
+    }
+
+    /**
+     * Descarga y guarda en IndexedDB las respuestas previas.
+     */
+    async function downloadPreviousResponses() {
+      const list = await fetchPreviousResponses();
+      await loadCached();
+      const existing = await idb.all('responses');
+
+      for (const it of list) {
+        const pdvId = String(it.pdv_id || it.pdvId);
+        const info = findPdvById(pdvId);
+        const routeId = info ? info.route.id : '';
+        let row = existing.find((x) => String(x.pdvId) === pdvId) || {};
+
+        row = Object.assign({}, row, {
+          pdvId: pdvId,
+          routeId: routeId,
+          answers: it.answers || {},
+          status: 'synced',
+          createdAt: row.createdAt || Date.now(),
+          updatedAt: Date.now(),
+        });
+
+        if (row.localId) {
+          await idb.put('responses', row);
+        } else {
+          await idb.add('responses', row);
+        }
+
+        setPDVStatusLocal(pdvId, 'synced');
+      }
+
+      await refreshCounts();
+      alert('Descarga completa');
+    }
+
   /**
    * Descarga y persiste en IndexedDB los catálogos + rutas.
    */
@@ -1012,7 +1066,8 @@
     const routeId = info ? info.route.id : '';
     const routeTitle = info ? (info.route.title || ('Ruta ' + info.route.id)) : '';
 
-    let answers = {};
+    const existingResp = (await idb.all('responses')).find((r) => String(r.pdvId) === String(pdvId));
+    let answers = existingResp ? (existingResp.answers || {}) : {};
     let step = 0;
 
     const cam = buildCameraUI();
@@ -1395,10 +1450,11 @@
     $c.html(
       '<div class="container py-3">' +
         '<h5>Ajustes</h5>' +
-        '<div class="card card-tap mb-3">' +
+            '<div class="card card-tap mb-3">' +
           '<div class="card-body">' +
             '<div class="d-flex flex-wrap">' +
               '<button class="btn btn-outline-secondary btn-lg mr-2 mb-2" id="btn-update-app">Actualizar app</button>' +
+              '<button class="btn btn-outline-success btn-lg mr-2 mb-2" id="btn-download-responses">Descargar respuestas anteriores</button>' +
               '<button class="btn btn-outline-danger btn-lg mr-2 mb-2" id="btn-clear-cache">Limpiar caché</button>' +
               '<button class="btn btn-outline-primary btn-lg mr-2 mb-2" id="btn-go-home">Ir al inicio</button>' +
             '</div>' +
@@ -1419,6 +1475,11 @@
     // Limpiar caches de Cache Storage
     $('#btn-clear-cache').on('click', async function () {
       await clearCacheStorage(true);
+    });
+
+    // Descargar respuestas previas del servidor
+    $('#btn-download-responses').on('click', async function () {
+      await downloadPreviousResponses();
     });
 
     // Ir a inicio dependiendo de si hay sesión
