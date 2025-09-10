@@ -1467,7 +1467,7 @@
     setBreadcrumbs([{ label: 'Inicio', href: home }, { label: 'Ajustes', active: true }]);
 
     const downloadBtn = hasSession()
-      ? '<button class="btn btn-outline-secondary btn-lg btn-block mb-2" id="btn-download-responses">Descargar respuestas anteriores</button>'
+      ? '<button class="btn btn-outline-secondary btn-lg btn-block mb-2" id="btn-download-responses">Descargar anteriores</button>'
       : '';
 
     $c.html(
