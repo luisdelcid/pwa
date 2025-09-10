@@ -481,11 +481,20 @@
   }
 
   function pdvsFromRoute(route) {
-    const out = [];
+    const map = new Map();
     (route.subroutes || []).forEach((sr) => {
-      (sr.pdvs || []).forEach((p) => out.push(p));
+      (sr.pdvs || []).forEach((p) => {
+        const id = String(p.id);
+        if (!map.has(id)) {
+          // Clonar para evitar referencias compartidas y agregar sub-rutas asociadas
+          const clone = Object.assign({}, p);
+          clone.subroutes = [];
+          map.set(id, clone);
+        }
+        map.get(id).subroutes.push({ id: String(sr.id), title: sr.title });
+      });
     });
-    return out;
+    return Array.from(map.values());
   }
 
   function legacyRoutesFromPdvs(pdvs) {
@@ -720,9 +729,10 @@
       .map((s) => ({ id: String(s.id), title: s.title }))
       .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
+    const allPdvs = pdvsFromRoute(route);
     const filtered = selectedSub
-      ? ((route.subroutes || []).find((s) => String(s.id) === String(selectedSub)) || { pdvs: [] }).pdvs
-      : pdvsFromRoute(route);
+      ? allPdvs.filter((p) => p.subroutes.some((sr) => String(sr.id) === String(selectedSub)))
+      : allPdvs;
 
     const prog = summarizeProgress(filtered);
 
@@ -775,46 +785,40 @@
     function renderRows() {
       $list.empty();
       const term = ($('#pdv-search').val() || '').toLowerCase();
-      const groups = [];
-
-      (route.subroutes || []).forEach((sr) => {
-        if (selectedSub && String(sr.id) !== String(selectedSub)) return;
-        const items = sr.pdvs.filter((p) => {
+      const items = allPdvs
+        .filter((p) => {
+          if (selectedSub && !p.subroutes.some((sr) => String(sr.id) === String(selectedSub))) return false;
           if (term) {
             const haystack = ((p.name || '') + ' ' + (p.address || '') + ' ' + (p.code || '')).toLowerCase();
             if (!haystack.includes(term)) return false;
           }
           return true;
-        });
-        if (items.length) groups.push({ id: String(sr.id), title: sr.title, items });
-      });
+        })
+        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-      if (!groups.length) {
+      if (!items.length) {
         $list.append('<div class="list-group-item small text-muted">No hay PDVs para el filtro seleccionado.</div>');
         return;
       }
 
-      groups
-        .sort((a, b) => (a.title || '').localeCompare(b.title || ''))
-        .forEach((g) => {
-          $list.append('<div class="list-group-item active">' + g.title + '</div>');
-          g.items.forEach((p) => {
-            const $i = $('<div/>')
-              .addClass('list-group-item list-group-item-action')
-              .attr('data-id', p.id)
-              .html(
-                '<div class="d-flex w-100 justify-content-between align-items-start">' +
-                  '<div>' +
-                    '<div class="font-weight-bold">' + (p.code || '') + ' — ' + p.name + '</div>' +
-                    '<div class="small text-muted">' + (p.address || '') + '</div>' +
-                  '</div>' +
-                  '<div>' + statusChip(p.status || 'pending') + '</div>' +
-                '</div>'
-              );
+      items.forEach((p) => {
+        const subs = p.subroutes.map((sr) => sr.title).join(', ');
+        const $i = $('<div/>')
+          .addClass('list-group-item list-group-item-action')
+          .attr('data-id', p.id)
+          .html(
+            '<div class="d-flex w-100 justify-content-between align-items-start">' +
+              '<div>' +
+                '<div class="font-weight-bold">' + (p.code || '') + ' — ' + p.name + '</div>' +
+                '<div class="small text-muted">' + (p.address || '') + '</div>' +
+                '<div class="small text-muted">Sub-rutas: ' + subs + '</div>' +
+              '</div>' +
+              '<div>' + statusChip(p.status || 'pending') + '</div>' +
+            '</div>'
+          );
 
-            $list.append($i);
-          });
-        });
+        $list.append($i);
+      });
     }
 
     renderRows();
