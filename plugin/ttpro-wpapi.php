@@ -214,6 +214,7 @@ class TTPro_Api {
                 'text'     => 'Text',
                 'textarea' => 'Textarea',
                 'radio'    => 'Radio',
+                'number'   => 'Number',
                 'photo'    => 'Photo',
                 'geo'      => 'Geo',
               ],
