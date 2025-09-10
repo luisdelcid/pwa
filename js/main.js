@@ -1122,7 +1122,10 @@
       if (step >= seq.length) step = seq.length - 1;
 
       const f = seq[step];
-      const $b = $('#form-body').empty();
+      const $b = $('#form-body');
+      // Preservamos los eventos del widget de cámara al cambiar de paso
+      cam.$root.detach();
+      $b.empty();
 
       if (f.type === 'photo') {
         $b.append(cam.$root);
