@@ -1061,6 +1061,13 @@
           .append('<div class="form-step-title mb-2">' + f.label + '</div>')
           .append($ta);
       }
+      if (f.type === 'number') {
+        const $num = $('<input type="number" inputmode="numeric" pattern="[0-9]*" class="form-control">').val(val || '');
+        $num.on('input', () => onChange($num.val()));
+        return $('<div class="mb-3"></div>')
+          .append('<div class="form-step-title mb-2">' + f.label + '</div>')
+          .append($num);
+      }
       const $in = $('<input type="text" class="form-control">').val(val || '');
       $in.on('input', () => onChange($in.val()));
       return $('<div class="mb-3"></div>')
