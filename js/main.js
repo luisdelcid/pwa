@@ -1432,13 +1432,17 @@
 
   $(document).on('click', '#btn-settings', function () { location.hash = '#/settings'; });
 
-  $(document).on('click', '#btn-auth', function () {
+  $(document).on('click', '#btn-auth', async function () {
     if (hasSession()) {
       localStorage.removeItem('jwt');
       localStorage.removeItem('sessionActive');
+      await clearCacheStorage();
+      location.hash = '#/';
+      location.reload();
+    } else {
+      location.hash = '#/';
+      updateAuthIcon();
     }
-    location.hash = '#/';
-    updateAuthIcon();
   });
 
 
