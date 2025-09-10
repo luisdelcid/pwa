@@ -837,7 +837,8 @@
    * Crea el widget mínimo de cámara (encender, capturar, repetir) y expone API.
    * No arranca la cámara automáticamente; requiere click del usuario.
    */
-  function buildCameraUI(title) {
+  function buildCameraUI(title, opts = {}) {
+    const hasPhoto = !!(opts && opts.hasPhoto);
     const $w = $('<div class="mb-3"></div>');
 
     // Título de paso
@@ -860,8 +861,12 @@
     $controls.append($btnShot, $btnRetake);
 
     // Estado + botón principal
-    const $status = $('<div class="small text-muted mt-2">Para iniciar, enciende la cámara.</div>');
-    const $btnStart = $('<button type="button" class="btn btn-outline-primary btn-block btn-lg">Encender cámara</button>');
+    const initMsg = hasPhoto
+      ? 'Ya hay una foto almacenada. Puedes reemplazarla.'
+      : 'Para iniciar, enciende la cámara.';
+    const initBtn = hasPhoto ? 'Reemplazar la foto actual' : 'Encender cámara';
+    const $status = $('<div class="small text-muted mt-2"></div>').text(initMsg);
+    const $btnStart = $('<button type="button" class="btn btn-outline-primary btn-block btn-lg"></button>').text(initBtn);
 
     $w.append($btnStart, $wrap, $controls, $status);
 
@@ -1077,7 +1082,8 @@
     let step = 0;
 
     const photoField = fields.find((f) => f.type === 'photo');
-    const cam = buildCameraUI(photoField ? (photoField.label + (photoField.required ? ' *' : '')) : '');
+    let existingPhotoBase64 = existingResp ? (existingResp.photoBase64 || null) : null;
+    const cam = buildCameraUI(photoField ? (photoField.label + (photoField.required ? ' *' : '')) : '', { hasPhoto: !!existingPhotoBase64 });
     let photoBlob = null;
 
     function shouldShowField(f) {
@@ -1093,7 +1099,7 @@
 
     function hasValue(f) {
       const val = answers[f.id];
-      if (f.type === 'photo') return !!photoBlob;
+      if (f.type === 'photo') return !!photoBlob || !!existingPhotoBase64;
       if (f.type === 'checkbox') return Array.isArray(val) && val.length > 0;
       if (f.type === 'geo') return val && val.lat && val.lng;
       if (typeof val === 'string') return val.trim() !== '';
@@ -1157,10 +1163,15 @@
         .append($in);
     }
 
-    function geoUI(onChange) {
+    function geoUI(onChange, initial) {
       const $w = $('<div class="mb-3"></div>');
-      const $b = $('<button class="btn btn-outline-primary btn-lg btn-block" type="button">Obtener ubicación</button>');
-      const $o = $('<div class="small text-muted mt-2">Aún sin datos</div>');
+      const hasInit = initial && initial.lat && initial.lng;
+      const btnText = hasInit ? 'Actualizar ubicación' : 'Obtener ubicación';
+      const txt = hasInit
+        ? 'Lat: ' + initial.lat + ', Lng: ' + initial.lng + ', Precisión: ' + initial.accuracy + ' m'
+        : 'Aún sin datos';
+      const $b = $('<button class="btn btn-outline-primary btn-lg btn-block" type="button"></button>').text(btnText);
+      const $o = $('<div class="small text-muted mt-2"></div>').text(txt);
 
       $b.on('click', () => {
         navigator.geolocation.getCurrentPosition(
@@ -1197,12 +1208,13 @@
         $b.append(cam.$root);
         cam.oncapture(function (blob) {
           photoBlob = blob;
+          existingPhotoBase64 = null;
           updateStepUI(seq.length, f);
         });
       } else if (f.type === 'geo') {
         try { await cam.stop(); } catch (e) {}
         $b.append('<div class="form-step-title mb-2">' + f.label + '</div>')
-          .append(geoUI((v) => { answers[f.id] = v; updateStepUI(seq.length, f); }));
+          .append(geoUI((v) => { answers[f.id] = v; updateStepUI(seq.length, f); }, answers[f.id]));
       } else {
         try { await cam.stop(); } catch (e) {}
         const val = answers[f.id];
@@ -1218,7 +1230,7 @@
         reader.onloadend = () => resolve(reader.result);
         reader.onerror = reject;
         reader.readAsDataURL(photoBlob);
-      }) : null;
+      }) : existingPhotoBase64;
 
       const payload = {
         pdvId: pdvId,
