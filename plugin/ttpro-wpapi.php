@@ -555,6 +555,35 @@ class TTPro_Api {
       }
     ]);
 
+    // Respuestas previamente sincronizadas del usuario autenticado
+    register_rest_route('myapp/v1', '/responses/mine', [
+      'methods'  => 'GET',
+      'permission_callback' => function() { return current_user_can('read'); },
+      'callback' => function($req) {
+        $user_id = $this->current_user_id_jwt();
+        if (!$user_id) return new WP_Error('tt_no_user','No autenticado', ['status'=>401]);
+
+        $pdvs = get_posts([
+          'post_type'  => 'tt_pdv',
+          'numberposts'=> -1,
+          'post_status'=> 'any',
+          'meta_query' => [[ 'key' => 'tt_pdv_filled_by', 'value' => $user_id, 'compare' => '=' ]],
+        ]);
+
+        $out = [];
+        foreach ($pdvs as $p) {
+          $ans = json_decode(get_post_meta($p->ID, 'tt_pdv_answers', true), true);
+          $out[] = [
+            'pdv_id'    => (int) $p->ID,
+            'answers'   => is_array($ans) ? $ans : [],
+            'updated_at'=> get_post_meta($p->ID, 'tt_pdv_filled_at', true),
+          ];
+        }
+
+        return $out;
+      }
+    ]);
+
   }
 
 }
