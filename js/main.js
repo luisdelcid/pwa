@@ -1042,7 +1042,7 @@
       const pct = total > 1 ? Math.round((step / (total - 1)) * 100) : 100;
       $('#progressbar').css('width', pct + '%');
       $('#step-label').text((step + 1) + '/' + total);
-      $('#btn-next').text(step === (total - 1) ? 'Finalizar' : 'Siguiente');
+      $('#btn-next').text(step === (total - 1) && step !== 0 ? 'Finalizar' : 'Siguiente');
       if (field && field.required) {
         $('#btn-next').prop('disabled', !hasValue(field));
       } else {
