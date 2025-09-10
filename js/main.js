@@ -1458,13 +1458,11 @@
       '<div class="container py-3">' +
         '<h5>Ajustes</h5>' +
         '<div class="text-muted small mb-3">Versión: ' + APP_VERSION + '</div>' +
-            '<div class="card card-tap mb-3">' +
+        '<div class="card card-tap mb-3">' +
           '<div class="card-body">' +
-            '<div class="d-flex flex-wrap">' +
-              '<button class="btn btn-outline-secondary btn-lg mr-2 mb-2" id="btn-update-app">Actualizar app</button>' +
-              '<button class="btn btn-outline-success btn-lg mr-2 mb-2" id="btn-download-responses">Descargar respuestas anteriores</button>' +
-              '<button class="btn btn-outline-danger btn-lg mr-2 mb-2" id="btn-clear-cache">Limpiar caché</button>' +
-              '<button class="btn btn-outline-primary btn-lg mr-2 mb-2" id="btn-go-home">Ir al inicio</button>' +
+            '<div>' +
+              '<button class="btn btn-outline-secondary btn-lg btn-block mb-2" id="btn-update-app">Actualizar</button>' +
+              '<button class="btn btn-outline-secondary btn-lg btn-block mb-2" id="btn-download-responses">Descargar respuestas anteriores</button>' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -1472,26 +1470,21 @@
     );
     // Forzar actualización de Service Worker
     $('#btn-update-app').on('click', async function () {
+      const $btn = $(this);
+      $btn.prop('disabled', true).text('Actualizando…');
       const reg = await navigator.serviceWorker.getRegistration('./');
       if (reg) {
         await reg.update();
         if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
       }
-      alert('Actualizando… cierra/abre la PWA si no ves cambios.');
-    });
-
-    // Limpiar caches de Cache Storage
-    $('#btn-clear-cache').on('click', async function () {
-      await clearCacheStorage(true);
+      await clearCacheStorage();
+      location.reload();
     });
 
     // Descargar respuestas previas del servidor
     $('#btn-download-responses').on('click', async function () {
       await downloadPreviousResponses();
     });
-
-    // Ir a inicio dependiendo de si hay sesión
-    $('#btn-go-home').on('click', function () { location.hash = home; });
   }
 
   /**
