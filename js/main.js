@@ -17,7 +17,7 @@
   // Constantes base de la aplicación
   // ---------------------------------------------------------------------------
   const BRAND = 'TT Censo 2025';
-  const APP_VERSION = '5.9.0';
+  const APP_VERSION = '5.9.1';
   const API_BASE = 'https://todoterreno.prueba.in';
   const IDBVER = 7; // Versión del esquema de IndexedDB
 
