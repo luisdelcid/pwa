@@ -780,7 +780,7 @@
     $w.append('<div class="form-step-title mb-2">Fotografía (requerida)</div>');
 
     // Contenedores del preview
-    const $wrap = $('<div class="camera-wrap"></div>');
+    const $wrap = $('<div class="camera-wrap mt-2"></div>');
     const $frame = $('<div class="camera-frame"></div>');
     const $video = $('<video playsinline autoplay muted class="media rounded" style="display:none"></video>');
     const $canvas = $('<canvas class="media rounded" style="display:none"></canvas>');
@@ -790,14 +790,14 @@
 
     // Controles (se muestran cuando corresponde)
     const $controls = $('<div class="camera-controls mt-2 d-flex justify-content-between" style="display:none"></div>');
-    const $btnShot = $('<button type="button" class="btn btn-primary btn-lg" style="display:none">Capturar</button>');
-    const $btnRetake = $('<button type="button" class="btn btn-outline-warning btn-lg" style="display:none">Repetir</button>');
+    const $btnShot = $('<button type="button" class="btn btn-outline-primary btn-block btn-lg" style="display:none">Capturar</button>');
+    const $btnRetake = $('<button type="button" class="btn btn-outline-primary btn-block btn-lg mt-0" style="display:none">Repetir</button>');
 
     $controls.append($btnShot, $btnRetake);
 
     // Estado + botón principal
     const $status = $('<div class="small text-muted mt-2">Para iniciar, enciende la cámara.</div>');
-    const $btnStart = $('<button type="button" class="btn btn-outline-secondary btn-lg">Encender cámara</button>');
+    const $btnStart = $('<button type="button" class="btn btn-outline-primary btn-block btn-lg">Encender cámara</button>');
 
     $w.append($btnStart, $wrap, $controls, $status);
 
