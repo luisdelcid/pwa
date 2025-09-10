@@ -1466,6 +1466,10 @@
 
     setBreadcrumbs([{ label: 'Inicio', href: home }, { label: 'Ajustes', active: true }]);
 
+    const downloadBtn = hasSession()
+      ? '<button class="btn btn-outline-secondary btn-lg btn-block mb-2" id="btn-download-responses">Descargar respuestas anteriores</button>'
+      : '';
+
     $c.html(
       '<div class="container py-3">' +
         '<h5>Ajustes</h5>' +
@@ -1474,7 +1478,7 @@
           '<div class="card-body">' +
             '<div>' +
               '<button class="btn btn-outline-secondary btn-lg btn-block mb-2" id="btn-update-app">Actualizar</button>' +
-              '<button class="btn btn-outline-secondary btn-lg btn-block mb-2" id="btn-download-responses">Descargar respuestas anteriores</button>' +
+              downloadBtn +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -1494,9 +1498,11 @@
     });
 
     // Descargar respuestas previas del servidor
-    $('#btn-download-responses').on('click', async function () {
-      await downloadPreviousResponses();
-    });
+    if (hasSession()) {
+      $('#btn-download-responses').on('click', async function () {
+        await downloadPreviousResponses();
+      });
+    }
   }
 
   /**
