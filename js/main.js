@@ -332,6 +332,21 @@
   }
 
   /**
+   * Elimina todas las entradas de Cache Storage de la aplicación.
+   * @param {boolean} [alertUser=false] Muestra un alert al finalizar
+   */
+  async function clearCacheStorage(alertUser = false) {
+    if (window.caches) {
+      const ks = await caches.keys();
+      for (const k of ks) await caches.delete(k);
+    }
+
+    if (alertUser) {
+      alert('Caché limpiada. Recarga la app.');
+    }
+  }
+
+  /**
    * Determina si hay sesión activa (JWT o flag local).
    */
   function hasSession() {
@@ -522,6 +537,7 @@
         localStorage.setItem('jwt', j.token);
         localStorage.setItem('sessionActive', '1');
 
+        await clearCacheStorage();
         await bootstrapData();
         await loadCached();
         updateAuthIcon();
@@ -1395,11 +1411,7 @@
 
     // Limpiar caches de Cache Storage
     $('#btn-clear-cache').on('click', async function () {
-      if (window.caches) {
-        const ks = await caches.keys();
-        for (const k of ks) await caches.delete(k);
-      }
-      alert('Caché limpiada. Recarga la app.');
+      await clearCacheStorage(true);
     });
 
     // Ir a inicio dependiendo de si hay sesión
