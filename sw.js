@@ -1,9 +1,9 @@
-// SW — 5.8.2
-const CACHE = 'ttpro-5.8.2';
+// SW — 5.9.0
+const CACHE = 'ttpro-5.9.0';
 const PRECACHE = [
-  './','./index.html','./manifest.webmanifest?v=5.8.2',
+  './','./index.html','./manifest.webmanifest?v=5.9.0',
   './assets/icons/icon-192.png','./assets/icons/icon-512.png',
-  './js/main.js?v=5.8.2','./css/app.css?v=5.8.2','./sw-reset.html',
+  './js/main.js?v=5.9.0','./css/app.css?v=5.9.0','./sw-reset.html',
   'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js',
   'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js'

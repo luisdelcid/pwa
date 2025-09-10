@@ -24,7 +24,7 @@
     0 8px 24px rgba(0, 0, 0, .06);
 }
 
-/* Chips de estado (Pendiente/Lleno/Sincronizado) */
+/* Chips de estado (Pendiente/Lleno/Completado) */
 .badge.status { font-weight: 600; }
 .badge.status.pending { background: #fff3cd; color: #8a6d3b; }   /* amarillo */
 .badge.status.filled  { background: #d1ecf1; color: #0c5460; }   /* celeste */

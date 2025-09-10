@@ -11,10 +11,10 @@
   <meta name="theme-color" content="#007bff">
 
   <!-- Título de la app -->
-  <title>Todo Terreno PRO — Bootstrap 4 + jQuery</title>
+  <title>TT Censo 2025</title>
 
   <!-- Manifest PWA: nombre, íconos, scope y comportamiento de instalación -->
-  <link rel="manifest" href="./manifest.webmanifest?v=5.8.2">
+  <link rel="manifest" href="./manifest.webmanifest?v=5.9.0">
 
   <!-- Favicon/ícono base (también útil para splash en algunas plataformas) -->
   <link rel="icon" href="./assets/icons/icon-192.png" sizes="192x192">
@@ -24,7 +24,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
 
   <!-- Estilos propios de la app (versionados por querystring) -->
-  <link href="./css/app.css?v=5.8.2" rel="stylesheet">
+  <link href="./css/app.css?v=5.9.0" rel="stylesheet">
 
   <!-- Evita cachear este HTML (útil durante desarrollo/QA) -->
   <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate">
@@ -46,7 +46,7 @@
       <div class="d-flex align-items-center">
         <!-- Logotipo redondeado -->
         <img src="./assets/icons/icon-192.png" class="rounded" width="28" height="28" alt="">
-        <strong class="ml-2">Todo Terreno PRO</strong>
+        <strong class="ml-2">TT Censo 2025</strong>
       </div>
 
       <!-- Acciones de usuario en la barra superior -->
@@ -87,8 +87,8 @@
       <div class="container-fluid py-2">
         <div class="d-flex align-items-center justify-content-center flex-wrap w-100">
           <span class="badge badge-pill badge-success" id="chip-online">Online</span>
-          <a href="#/pending" class="ml-2 text-decoration-none"><span class="badge badge-pill badge-warning" id="chip-pending">Pend: 0</span></a>
-          <a href="#/synced" class="ml-2 text-decoration-none"><span class="badge badge-pill badge-primary" id="chip-synced">Sync: 0</span></a>
+          <a href="#/pending" class="ml-2 text-decoration-none"><span class="badge badge-pill badge-warning" id="chip-pending">Pendientes: 0</span></a>
+          <a href="#/synced" class="ml-2 text-decoration-none"><span class="badge badge-pill badge-primary" id="chip-synced">Completados: 0</span></a>
         </div>
       </div>
     </footer>
@@ -98,7 +98,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
   <!-- Código de la app (versionado por querystring) -->
-  <script src="./js/main.js?v=5.8.2"></script>
+  <script src="./js/main.js?v=5.9.0"></script>
 
   <!-- Registro de Service Worker
        - Se hace en 'load' para no bloquear el first paint
@@ -107,7 +107,7 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () =>
-        navigator.serviceWorker.register('./sw.js?v=5.8.2', { scope: './' }).catch(() => {})
+        navigator.serviceWorker.register('./sw.js?v=5.9.0', { scope: './' }).catch(() => {})
       );
     }
   </script>
