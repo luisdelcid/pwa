@@ -969,7 +969,7 @@
 
       const $input = $('<input type="' + (multiple ? 'checkbox' : 'radio') + '" class="select-hidden" name="' + f.id + '" id="' + id + '" value="' + opt.value + '" ' + (checked ? 'checked' : '') + '>');
 
-      const $label = $('<label for="' + id + '" class="card select-card border"><div class="card-body p-2"><div class="title">' + opt.label + '</div></div></label>');
+      const $label = $('<label for="' + id + '" class="card select-card border"><div class="card-body p-3"><div class="title">' + opt.label + '</div></div></label>');
 
       $grid.append($input).append($label);
     });
