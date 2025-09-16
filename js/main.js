@@ -1139,7 +1139,7 @@
     }
 
     function renderField(f, val, onChange) {
-      if (f.type === 'radio' || f.type === 'checkbox') {
+      if (f.type === 'radio' || f.type === 'checkbox' || f.type === 'post') {
         return renderFieldCard(f, val, onChange);
       }
       if (f.type === 'textarea') {
