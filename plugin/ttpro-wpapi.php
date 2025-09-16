@@ -479,11 +479,40 @@ class TTPro_Api {
 
           if (!empty($q['show_if']) && is_array($q['show_if'])) {
             $conds = array_map(function ($cond) {
+              $id_raw = isset($cond['cond_id']) ? $cond['cond_id'] : '';
+              $value_raw = isset($cond['cond_value']) ? $cond['cond_value'] : '';
+
+              $id = is_scalar($id_raw) ? trim((string) $id_raw) : '';
+
+              if (is_array($value_raw)) {
+                $value = array_map(function ($v) {
+                  return is_scalar($v) ? trim((string) $v) : '';
+                }, $value_raw);
+                $value = array_values(array_filter($value, function ($v) {
+                  return $v !== '';
+                }));
+              } else {
+                $value = is_scalar($value_raw) ? trim((string) $value_raw) : '';
+                if (strpos($value, '|') !== false || strpos($value, ',') !== false) {
+                  $parts = preg_split('/[|,]+/', $value);
+                  $value = array_values(array_filter(array_map(function ($part) {
+                    return trim((string) $part);
+                  }, $parts), function ($v) {
+                    return $v !== '';
+                  }));
+                }
+              }
+
               return [
-                'id'    => isset($cond['cond_id']) ? $cond['cond_id'] : '',
-                'value' => isset($cond['cond_value']) ? $cond['cond_value'] : '',
+                'id'    => $id,
+                'value' => $value,
               ];
             }, $q['show_if']);
+
+            $conds = array_values(array_filter($conds, function ($cond) {
+              return !empty($cond['id']);
+            }));
+
             if (count($conds) === 1) {
               $field['show_if'] = $conds[0];
             } elseif (count($conds) > 1) {
