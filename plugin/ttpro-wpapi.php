@@ -9,11 +9,11 @@ if (!defined('ABSPATH')) exit;
 
 class TTPro_Api {
   public function __construct() {
-    add_action('init',               [$this,'register_cpts']);
-    add_action('rest_api_init',      [$this,'register_routes']);
+    add_action('init', [$this,'register_cpts']);
+    add_action('rest_api_init', [$this,'register_routes']);
     add_action('mb_relationships_init', [$this,'register_relationships']);
-    add_filter('mb_settings_pages',  [$this,'register_settings_pages']);
-    add_filter('rwmb_meta_boxes',    [$this,'register_settings_fields']);
+    add_filter('mb_settings_pages', [$this,'register_settings_pages']);
+    add_filter('rwmb_meta_boxes', [$this,'register_settings_fields']);
   }
 
   /* ===================== CPTs ===================== */
@@ -48,6 +48,26 @@ class TTPro_Api {
       'supports'     => ['title','author','custom-fields'],
       'show_in_rest' => false,
       'menu_position'=> 27,
+    ]);
+
+    register_post_type('departamento', [
+      'label'        => 'Departamentos',
+      /*'public'       => false,
+      'show_ui'      => true,*/
+      'public'       => true,
+      'supports'     => ['title'],
+      'show_in_rest' => false,
+      'menu_position'=> 28,
+    ]);
+
+    register_post_type('municipio', [
+      'label'        => 'Municipios',
+      /*'public'       => false,
+      'show_ui'      => true,*/
+      'public'       => true,
+      'supports'     => ['title'],
+      'show_in_rest' => false,
+      'menu_position'=> 29,
     ]);
   }
 
@@ -167,6 +187,26 @@ class TTPro_Api {
                 'meta_box' => [
                     'title' => 'Día de visita',
                 ],
+            ],
+        ]);
+
+        MB_Relationships_API::register([
+            'id' => 'municipios_to_departamentos',
+            'from' => [
+                'object_type' => 'post',
+                'post_type' => 'municipio',
+                'meta_box' => [
+                    'title' => 'Departamentos',
+                ],
+                'admin_column' => true,
+            ],
+            'to' => [
+                'object_type' => 'post',
+                'post_type' => 'departamento',
+                'meta_box' => [
+                    'title' => 'Municipios',
+                ],
+                'admin_column' => true,
             ],
         ]);
 
