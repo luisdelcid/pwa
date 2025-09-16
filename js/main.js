@@ -1086,11 +1086,36 @@
     const cam = buildCameraUI(photoField ? (photoField.label + (photoField.required ? ' *' : '')) : '', { hasPhoto: !!existingPhotoBase64 });
     let photoBlob = null;
 
+    function toArray(value) {
+      if (Array.isArray(value)) return value;
+      if (value === undefined || value === null) return [];
+      return [value];
+    }
+
+    function normalizeValues(value) {
+      return toArray(value).map((item) => {
+        if (item === undefined || item === null) return '';
+        return String(item).trim();
+      });
+    }
+
     function shouldShowField(f) {
       if (!f.show_if) return true;
-      const val = answers[f.show_if.id];
-      const exp = f.show_if.value;
-      return Array.isArray(exp) ? exp.includes(val) : val === exp;
+
+      const conditions = Array.isArray(f.show_if) ? f.show_if : [f.show_if];
+
+      return conditions.every((cond) => {
+        if (!cond || !cond.id) return true;
+
+        const actualValues = normalizeValues(answers[cond.id]);
+        const expectedValues = normalizeValues(cond.value);
+
+        if (expectedValues.length === 0) return false;
+
+        if (actualValues.length === 0) return false;
+
+        return expectedValues.some((exp) => actualValues.includes(exp));
+      });
     }
 
     function visibleFields() {
