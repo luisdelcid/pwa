@@ -257,8 +257,17 @@ class TTPro_Api {
                 'number'   => 'Number',
                 'photo'    => 'Photo',
                 'geo'      => 'Geo',
+                'post'     => 'Post',
               ],
               'std'     => 'text',
+            ],
+            [
+              'id'         => 'post_type',
+              'name'       => 'Tipo de post',
+              'type'       => 'text',
+              'desc'       => 'Slug del post type que se usará para generar las opciones.',
+              'attributes' => [ 'placeholder' => 'Ej: tt_route' ],
+              'visible'    => [ 'qtype', 'post' ],
             ],
             [
               'id'   => 'required',
@@ -424,7 +433,42 @@ class TTPro_Api {
             'required' => !empty($q['required']),
           ];
 
-          if (!empty($q['options']) && is_array($q['options'])) {
+          if ($field['type'] === 'post') {
+            $post_type = isset($q['post_type']) ? sanitize_key($q['post_type']) : '';
+            $field['post_type'] = $post_type;
+
+            $options = [];
+            if ($post_type) {
+              $query_args = [
+                'post_type'   => $post_type,
+                'post_status' => 'publish',
+                'numberposts' => -1,
+                'orderby'     => 'title',
+                'order'       => 'ASC',
+              ];
+
+              $query_args = apply_filters('ttpro_question_post_query_args', $query_args, $post_type, $field['id']);
+
+              $posts = get_posts($query_args);
+              foreach ($posts as $post_item) {
+                $options[] = [
+                  'value' => (string) $post_item->ID,
+                  'label' => get_the_title($post_item),
+                ];
+              }
+            }
+
+            $options = apply_filters('ttpro_question_post_options', $options, $post_type, $field['id']);
+            if (!is_array($options)) {
+              $options = [];
+            }
+
+            $field['options'] = array_values(array_filter($options, function ($opt) {
+              return isset($opt['value'], $opt['label']);
+            }));
+          }
+
+          if ($field['type'] !== 'post' && !empty($q['options']) && is_array($q['options'])) {
             $field['options'] = array_map(function ($opt) {
               return [
                 'value' => isset($opt['opt_value']) ? $opt['opt_value'] : '',
