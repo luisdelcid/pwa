@@ -104,6 +104,41 @@
         });
       });
     }
+
+    if (cfg.deleteUrl){
+      $table.on('click', '.ttpro-pdv-delete-btn', function(ev){
+        ev.preventDefault();
+
+        var $btn = $(this);
+        var pdvId = $btn.data('pdv-id');
+        if (!pdvId){
+          return;
+        }
+
+        if (!window.confirm('¿Deseas eliminar este punto de venta? Se enviará a la papelera.')){
+          return;
+        }
+
+        $btn.prop('disabled', true).addClass('ttpro-pdv-delete-btn--loading');
+
+        $.ajax({
+          url: cfg.deleteUrl,
+          method: 'POST',
+          headers: ajaxHeaders,
+          data: { pdv_id: pdvId }
+        }).done(function(){
+          dt.ajax.reload(null, false);
+        }).fail(function(xhr){
+          var message = 'No se pudo eliminar el punto de venta.';
+          if (xhr && xhr.responseJSON && xhr.responseJSON.message){
+            message = xhr.responseJSON.message;
+          }
+          window.alert(message);
+        }).always(function(){
+          $btn.prop('disabled', false).removeClass('ttpro-pdv-delete-btn--loading');
+        });
+      });
+    }
   }
 
   $(function(){
