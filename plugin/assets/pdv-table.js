@@ -69,6 +69,41 @@
     $table.on('searchBuilder-change', function(){
       dt.ajax.reload();
     });
+
+    if (cfg.rejectUrl){
+      $table.on('click', '.ttpro-pdv-reject-btn', function(ev){
+        ev.preventDefault();
+
+        var $btn = $(this);
+        var pdvId = $btn.data('pdv-id');
+        if (!pdvId){
+          return;
+        }
+
+        if (!window.confirm('¿Deseas rechazar este punto de venta? Se borrará la información capturada.')){
+          return;
+        }
+
+        $btn.prop('disabled', true).addClass('ttpro-pdv-reject-btn--loading');
+
+        $.ajax({
+          url: cfg.rejectUrl,
+          method: 'POST',
+          headers: ajaxHeaders,
+          data: { pdv_id: pdvId }
+        }).done(function(){
+          dt.ajax.reload(null, false);
+        }).fail(function(xhr){
+          var message = 'No se pudo rechazar el punto de venta.';
+          if (xhr && xhr.responseJSON && xhr.responseJSON.message){
+            message = xhr.responseJSON.message;
+          }
+          window.alert(message);
+        }).always(function(){
+          $btn.prop('disabled', false).removeClass('ttpro-pdv-reject-btn--loading');
+        });
+      });
+    }
   }
 
   $(function(){
