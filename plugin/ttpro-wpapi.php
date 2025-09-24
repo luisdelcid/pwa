@@ -11,6 +11,7 @@ class TTPro_Api {
   const REST_NAMESPACE = 'myapp/v1';
   const PDV_TABLE_ROUTE = '/pdv-table';
   const PDV_RESET_ROUTE = '/pdv-reset';
+  const PDV_TRASH_ROUTE = '/pdv-trash';
   const REST_NONCE_ACTION = 'wp_rest';
 
   public function __construct() {
@@ -874,6 +875,13 @@ class TTPro_Api {
         'className' => 'dt-body-center ttpro-pdv-reject-column',
         'source' => 'computed',
       ]);
+
+      $add_column('pdv_delete', 'Eliminar', [
+        'orderable' => false,
+        'searchable' => false,
+        'className' => 'dt-body-center ttpro-pdv-delete-column',
+        'source' => 'computed',
+      ]);
     }
 
     foreach ($questions as $question) {
@@ -1091,11 +1099,18 @@ class TTPro_Api {
       'filled_at'   => (string) get_post_meta($post_id, 'tt_pdv_filled_at', true),
       'pdv_route'   => '',
       'pdv_subroute'=> '',
+      'pdv_reject'  => '',
+      'pdv_delete'  => '',
     ];
 
     if ($this->user_can_manage_pdv_rejection()) {
       $row['pdv_reject'] = sprintf(
         '<button type="button" class="btn btn-sm btn-outline-danger ttpro-pdv-reject-btn" data-pdv-id="%d">Rechazar</button>',
+        (int) $post_id
+      );
+
+      $row['pdv_delete'] = sprintf(
+        '<button type="button" class="btn btn-sm btn-outline-danger ttpro-pdv-delete-btn" data-pdv-id="%d">Eliminar</button>',
         (int) $post_id
       );
     }
@@ -1182,6 +1197,14 @@ class TTPro_Api {
         return $this->user_can_manage_pdv_rejection();
       },
       'callback' => [$this, 'rest_reset_pdv'],
+    ]);
+
+    register_rest_route(self::REST_NAMESPACE, self::PDV_TRASH_ROUTE, [
+      'methods'  => ['POST'],
+      'permission_callback' => function() {
+        return $this->user_can_manage_pdv_rejection();
+      },
+      'callback' => [$this, 'rest_trash_pdv'],
     ]);
 
     // Rutas + sub-rutas + PDVs del usuario autenticado
@@ -1521,6 +1544,39 @@ class TTPro_Api {
     ], 200);
   }
 
+  public function rest_trash_pdv(WP_REST_Request $req) {
+    $pdv_id = intval($req->get_param('pdv_id'));
+    if (!$pdv_id) {
+      return new WP_Error('tt_invalid_pdv', 'Punto de venta inválido', ['status' => 400]);
+    }
+
+    $post = get_post($pdv_id);
+    if (!$post || $post->post_type !== 'tt_pdv') {
+      return new WP_Error('tt_invalid_pdv', 'Punto de venta inválido', ['status' => 404]);
+    }
+
+    if ($post->post_status === 'trash') {
+      return new WP_REST_Response([
+        'ok' => true,
+        'pdv_id' => $pdv_id,
+        'trashed' => true,
+      ], 200);
+    }
+
+    $trashed = wp_trash_post($pdv_id);
+    if ($trashed === false || is_wp_error($trashed)) {
+      return new WP_Error('tt_trash_failed', 'No se pudo eliminar el punto de venta.', ['status' => 500]);
+    }
+
+    clean_post_cache($pdv_id);
+
+    return new WP_REST_Response([
+      'ok' => true,
+      'pdv_id' => $pdv_id,
+      'trashed' => true,
+    ], 200);
+  }
+
   private function reset_pdv_metadata($pdv_id) {
     $meta_keys = [
       'tt_pdv_answers',
@@ -1618,6 +1674,7 @@ class TTPro_Api {
       'dom'                  => '<"ttpro-table-toolbar"BfQ>t<"ttpro-table-footer"lip>',
       'buttons'              => ['copy','csv','excel','print'],
       'rejectUrl'            => $this->user_can_manage_pdv_rejection() ? rest_url(self::REST_NAMESPACE . self::PDV_RESET_ROUTE) : '',
+      'deleteUrl'            => $this->user_can_manage_pdv_rejection() ? rest_url(self::REST_NAMESPACE . self::PDV_TRASH_ROUTE) : '',
       'language'             => [
         'processing'  => 'Procesando...',
         'lengthMenu'  => 'Mostrar _MENU_ registros',
