@@ -34,12 +34,14 @@
       ajaxHeaders['X-WP-Nonce'] = cfg.nonce;
     }
 
+    var ajaxMethod = cfg.ajaxMethod || 'POST';
+
     var dt = $table.DataTable({
       processing: true,
       serverSide: true,
       ajax: {
         url: cfg.restUrl || '',
-        type: 'GET',
+        type: ajaxMethod,
         headers: ajaxHeaders,
         data: function(d){
           try {
