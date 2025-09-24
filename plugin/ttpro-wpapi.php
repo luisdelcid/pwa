@@ -2,7 +2,7 @@
 /*
 Plugin Name: TT Censo API
 Description: Endpoints para TT Censo 2025. CPTs de Rutas y PDVs. Devuelve PDVs del usuario y recibe respuestas (foto como imagen destacada, metadatos y usuario que llenó).
-Version: 1.10.0
+Version: 1.11.0
 Author: TT
 */
 if (!defined('ABSPATH')) exit;
@@ -280,6 +280,15 @@ class TTPro_Api {
               'type' => 'checkbox',
             ],
             [
+              'id'   => 'instruction_image',
+              'name' => 'Imagen de instrucciones',
+              'type' => 'image_advanced',
+              'max_file_uploads' => 1,
+              'max_status'       => false,
+              'image_size'       => 'medium',
+              'desc'             => 'Se mostrará antes de la pregunta en la PWA.',
+            ],
+            [
               'id'         => 'options',
               'name'       => 'Opciones',
               'type'       => 'group',
@@ -438,6 +447,35 @@ class TTPro_Api {
           $field['show_if'] = $conds[0];
         } elseif (count($conds) > 1) {
           $field['show_if'] = $conds;
+        }
+      }
+
+      if (!empty($q['instruction_image'])) {
+        $image_data = $q['instruction_image'];
+        $image_url = '';
+
+        if (is_array($image_data)) {
+          $first = reset($image_data);
+
+          if (is_array($first)) {
+            if (!empty($first['url'])) {
+              $image_url = $first['url'];
+            } elseif (!empty($first['full_url'])) {
+              $image_url = $first['full_url'];
+            } elseif (!empty($first['ID'])) {
+              $image_url = wp_get_attachment_url((int) $first['ID']);
+            }
+          } elseif (is_scalar($first)) {
+            $image_url = wp_get_attachment_url((int) $first);
+          }
+        } elseif (is_scalar($image_data)) {
+          $image_url = (string) $image_data;
+        }
+
+        $image_url = is_string($image_url) ? esc_url_raw($image_url) : '';
+
+        if ($image_url) {
+          $field['instruction_image'] = $image_url;
         }
       }
 
@@ -1095,7 +1133,7 @@ class TTPro_Api {
     register_rest_route('myapp/v1', '/ping', [
       'methods'  => 'GET',
       'permission_callback' => '__return_true',
-      'callback' => function() { return ['ok'=>true,'plugin'=>'ttpro-wpapi','version'=>'1.9.1']; }
+      'callback' => function() { return ['ok'=>true,'plugin'=>'ttpro-wpapi','version'=>'1.11.0']; }
     ]);
 
     // Catálogos (protegido)
@@ -1105,7 +1143,7 @@ class TTPro_Api {
       //'permission_callback' => '__return_true',
       'callback' => function($req) {
         return [
-          'version' => 2,
+          'version' => 3,
           'fields'  => $this->build_catalog_questions(),
         ];
       }

@@ -17,7 +17,8 @@
   // Constantes base de la aplicación
   // ---------------------------------------------------------------------------
   const BRAND = 'TT Censo 2025';
-  const APP_VERSION = '5.9.1';
+  const APP_VERSION = '5.10.0';
+  const CACHE_NAME = 'ttpro-' + APP_VERSION;
   const API_BASE = 'https://todoterreno.prueba.in';
   const IDBVER = 7; // Versión del esquema de IndexedDB
 
@@ -59,6 +60,111 @@
 
       $ol.append($li);
     });
+  }
+
+  const prefetchedInstructionImages = new Set();
+
+  function sanitizeInstructionUrl(raw) {
+    if (typeof raw !== 'string') return '';
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('data:image/')) return trimmed;
+    try {
+      const url = new URL(trimmed, location.origin);
+      if (url.protocol === 'http:' || url.protocol === 'https:') {
+        return url.toString();
+      }
+    } catch (e) {}
+    return '';
+  }
+
+  function getInstructionImageUrl(field) {
+    if (!field || typeof field !== 'object') return '';
+    return sanitizeInstructionUrl(field.instruction_image || '');
+  }
+
+  function createInstructionFigureFromUrl(url, label) {
+    const cleanUrl = sanitizeInstructionUrl(url);
+    if (!cleanUrl) return null;
+
+    const labelText = typeof label === 'string' ? label.trim() : '';
+    const altText = labelText ? ('Instrucciones para ' + labelText) : 'Instrucciones';
+
+    const $figure = $('<figure></figure>').addClass('field-instructions mb-2');
+    const $img = $('<img>', {
+      src: cleanUrl,
+      alt: altText,
+      class: 'img-fluid rounded field-instructions__image',
+      loading: 'lazy',
+    });
+
+    $figure.append($img);
+    return $figure;
+  }
+
+  function createInstructionFigureFromField(field) {
+    if (!field || typeof field !== 'object') return null;
+    const url = getInstructionImageUrl(field);
+    if (!url) return null;
+    const label = typeof field.label === 'string' ? field.label : '';
+    return createInstructionFigureFromUrl(url, label);
+  }
+
+  function appendInstructionFigure($container, field) {
+    const $figure = createInstructionFigureFromField(field);
+    if ($figure) {
+      $container.append($figure);
+    }
+  }
+
+  async function prefetchInstructionImages(fields) {
+    if (!Array.isArray(fields) || fields.length === 0) return;
+    if (!navigator.onLine) return;
+    if (!('caches' in window) || typeof caches.open !== 'function' || typeof fetch !== 'function') return;
+
+    try {
+      const cache = await caches.open(CACHE_NAME);
+
+      for (const field of fields) {
+        const url = getInstructionImageUrl(field);
+        if (!url || url.startsWith('data:')) continue;
+        if (prefetchedInstructionImages.has(url)) continue;
+
+        const existing = await cache.match(url);
+        if (existing) {
+          prefetchedInstructionImages.add(url);
+          continue;
+        }
+
+        let stored = false;
+
+        try {
+          const req = new Request(url, { mode: 'cors' });
+          const res = await fetch(req, { cache: 'no-store' });
+          if (res && res.ok) {
+            await cache.put(req, res.clone());
+            stored = true;
+          }
+        } catch (e) {}
+
+        if (!stored) {
+          try {
+            const req = new Request(url, { mode: 'no-cors' });
+            const res = await fetch(req);
+            if (res) {
+              await cache.put(req, res.clone());
+              stored = true;
+            }
+          } catch (e) {}
+        }
+
+        if (stored) {
+          prefetchedInstructionImages.add(url);
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo precachear imágenes de instrucciones', e);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -360,6 +466,9 @@
    */
   async function bootstrapData() {
     const catalogs = await fetchCatalogs();
+    if (catalogs && typeof catalogs === 'object' && Array.isArray(catalogs.fields)) {
+      await prefetchInstructionImages(catalogs.fields);
+    }
     await idb.put('appdata', { key: 'catalogs', value: catalogs, ts: Date.now() });
 
     const routesAll = await fetchRoutesAll();
@@ -374,6 +483,11 @@
     let p = await idb.get('appdata', 'routes_all');
 
     store.catalogs = (c && c.value) || { version: 1, fields: [] };
+
+    const fieldsForCache = Array.isArray(store.catalogs.fields) ? store.catalogs.fields : [];
+    if (fieldsForCache.length) {
+      prefetchInstructionImages(fieldsForCache).catch(() => {});
+    }
 
     if (p && p.value) {
       store.routesAll = p.value;
@@ -839,7 +953,14 @@
    */
   function buildCameraUI(title, opts = {}) {
     const hasPhoto = !!(opts && opts.hasPhoto);
+    const instructionUrl = opts && typeof opts.instructionImage === 'string' ? opts.instructionImage : '';
+    const instructionLabel = opts && typeof opts.instructionAlt === 'string' ? opts.instructionAlt : '';
     const $w = $('<div class="mb-3"></div>');
+
+    const $instructions = createInstructionFigureFromUrl(instructionUrl, instructionLabel);
+    if ($instructions) {
+      $w.append($instructions);
+    }
 
     // Título de paso
     $w.append($('<div class="form-step-title mb-2"></div>').text(title || ''));
@@ -1026,7 +1147,11 @@
     const multiple = (f.type === 'checkbox');
 
     const $wrap = $('<div class="mb-3"></div>');
-    $wrap.append('<div class="form-step-title mb-2">' + f.label + (f.required ? ' *' : '') + '</div>');
+    appendInstructionFigure($wrap, f);
+
+    const baseLabel = typeof f.label === 'string' ? f.label : '';
+    const labelText = f.required ? (baseLabel + ' *') : baseLabel;
+    $wrap.append($('<div class="form-step-title mb-2"></div>').text(labelText));
 
     const $grid = $('<div class="select-cards"></div>');
 
@@ -1083,7 +1208,13 @@
 
     const photoField = fields.find((f) => f.type === 'photo');
     let existingPhotoBase64 = existingResp ? (existingResp.photoBase64 || null) : null;
-    const cam = buildCameraUI(photoField ? (photoField.label + (photoField.required ? ' *' : '')) : '', { hasPhoto: !!existingPhotoBase64 });
+    const photoLabel = photoField && typeof photoField.label === 'string' ? photoField.label : '';
+    const photoTitle = photoField ? (photoLabel + (photoField.required ? ' *' : '')) : '';
+    const cam = buildCameraUI(photoTitle, {
+      hasPhoto: !!existingPhotoBase64,
+      instructionImage: getInstructionImageUrl(photoField),
+      instructionAlt: photoLabel,
+    });
     let photoBlob = null;
 
     function toArray(value) {
@@ -1167,25 +1298,32 @@
       if (f.type === 'radio' || f.type === 'checkbox' || f.type === 'post') {
         return renderFieldCard(f, val, onChange);
       }
+      const baseLabel = typeof f.label === 'string' ? f.label : '';
       if (f.type === 'textarea') {
-    const $ta = $('<textarea class="form-control form-control-lg" rows="5"></textarea>').val(val || '');
+        const $wrap = $('<div class="mb-3"></div>');
+        appendInstructionFigure($wrap, f);
+        const $title = $('<div class="form-step-title mb-2"></div>').text(baseLabel);
+        const $ta = $('<textarea class="form-control form-control-lg" rows="5"></textarea>').val(val || '');
         $ta.on('input', () => onChange($ta.val()));
-        return $('<div class="mb-3"></div>')
-          .append('<div class="form-step-title mb-2">' + f.label + '</div>')
-          .append($ta);
+        $wrap.append($title).append($ta);
+        return $wrap;
       }
       if (f.type === 'number') {
-    const $num = $('<input type="number" inputmode="numeric" pattern="[0-9]*" class="form-control form-control-lg">').val(val || '');
+        const $wrap = $('<div class="mb-3"></div>');
+        appendInstructionFigure($wrap, f);
+        const $title = $('<div class="form-step-title mb-2"></div>').text(baseLabel);
+        const $num = $('<input type="number" inputmode="numeric" pattern="[0-9]*" class="form-control form-control-lg">').val(val || '');
         $num.on('input', () => onChange($num.val()));
-        return $('<div class="mb-3"></div>')
-          .append('<div class="form-step-title mb-2">' + f.label + '</div>')
-          .append($num);
+        $wrap.append($title).append($num);
+        return $wrap;
       }
+      const $wrap = $('<div class="mb-3"></div>');
+      appendInstructionFigure($wrap, f);
+      const $title = $('<div class="form-step-title mb-2"></div>').text(baseLabel);
       const $in = $('<input type="text" class="form-control form-control-lg">').val(val || '');
       $in.on('input', () => onChange($in.val()));
-      return $('<div class="mb-3"></div>')
-        .append('<div class="form-step-title mb-2">' + f.label + '</div>')
-        .append($in);
+      $wrap.append($title).append($in);
+      return $wrap;
     }
 
     function geoUI(onChange, initial) {
@@ -1238,8 +1376,12 @@
         });
       } else if (f.type === 'geo') {
         try { await cam.stop(); } catch (e) {}
-        $b.append('<div class="form-step-title mb-2">' + f.label + '</div>')
-          .append(geoUI((v) => { answers[f.id] = v; updateStepUI(seq.length, f); }, answers[f.id]));
+        const $section = $('<div class="mb-3"></div>');
+        appendInstructionFigure($section, f);
+        const geoLabel = typeof f.label === 'string' ? f.label : '';
+        $section.append($('<div class="form-step-title mb-2"></div>').text(geoLabel));
+        $section.append(geoUI((v) => { answers[f.id] = v; updateStepUI(seq.length, f); }, answers[f.id]));
+        $b.append($section);
       } else {
         try { await cam.stop(); } catch (e) {}
         const val = answers[f.id];

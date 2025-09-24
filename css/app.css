@@ -39,6 +39,15 @@
 /* Título por paso (form) */
 .form-step-title { font-weight: 600; }
 
+/* Imagen de instrucciones opcional antes de cada campo */
+.field-instructions { margin-bottom: .75rem; }
+.field-instructions__image {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .08);
+}
+
 /* Bloque de acciones pegado al fondo (dentro de .app-main) */
 .sticky-actions {
   position: sticky;
