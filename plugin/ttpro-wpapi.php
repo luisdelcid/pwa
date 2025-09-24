@@ -1150,7 +1150,7 @@ class TTPro_Api {
     ]);
 
     register_rest_route(self::REST_NAMESPACE, self::PDV_TABLE_ROUTE, [
-      'methods'  => 'GET',
+      'methods'  => ['GET','POST'],
       'permission_callback' => function() { return current_user_can('read'); },
       'callback' => [$this, 'rest_pdv_table'],
     ]);
@@ -1487,7 +1487,7 @@ class TTPro_Api {
     }
     wp_enqueue_script('ttpro-datatables');
 
-    wp_register_script('ttpro-pdv-table', plugins_url('assets/pdv-table.js', __FILE__), ['ttpro-datatables'], '1.10.0', true);
+    wp_register_script('ttpro-pdv-table', plugins_url('assets/pdv-table.js', __FILE__), ['ttpro-datatables'], '1.10.1', true);
     wp_enqueue_script('ttpro-pdv-table');
   }
 
@@ -1530,6 +1530,7 @@ class TTPro_Api {
       'columns'              => $schema['columns'],
       'searchBuilderColumns' => $schema['searchable_indexes'],
       'pageLength'           => $per_page,
+      'ajaxMethod'           => 'POST',
       'order'                => [[0, 'asc']],
       'scrollX'              => true,
       'dom'                  => '<"ttpro-table-toolbar"BfQ>t<"ttpro-table-footer"lip>',
