@@ -10,6 +10,7 @@ if (!defined('ABSPATH')) exit;
 class TTPro_Api {
   const REST_NAMESPACE = 'myapp/v1';
   const PDV_TABLE_ROUTE = '/pdv-table';
+  const PDV_RESET_ROUTE = '/pdv-reset';
   const REST_NONCE_ACTION = 'wp_rest';
 
   public function __construct() {
@@ -759,6 +760,10 @@ class TTPro_Api {
     ];
   }
 
+  private function user_can_manage_pdv_rejection() {
+    return current_user_can('editor') || current_user_can('administrator');
+  }
+
   private function get_pdv_table_schema() {
     $questions = $this->build_catalog_questions();
 
@@ -861,6 +866,15 @@ class TTPro_Api {
       'meta_key' => 'tt_pdv_filled_at',
       'meta_type' => 'DATETIME',
     ]);
+
+    if ($this->user_can_manage_pdv_rejection()) {
+      $add_column('pdv_reject', 'Rechazar', [
+        'orderable' => false,
+        'searchable' => false,
+        'className' => 'dt-body-center ttpro-pdv-reject-column',
+        'source' => 'computed',
+      ]);
+    }
 
     foreach ($questions as $question) {
       if (empty($question['meta_key'])) {
@@ -1079,6 +1093,13 @@ class TTPro_Api {
       'pdv_subroute'=> '',
     ];
 
+    if ($this->user_can_manage_pdv_rejection()) {
+      $row['pdv_reject'] = sprintf(
+        '<button type="button" class="btn btn-sm btn-outline-danger ttpro-pdv-reject-btn" data-pdv-id="%d">Rechazar</button>',
+        (int) $post_id
+      );
+    }
+
     if ($row['pdv_status'] === '') {
       $row['pdv_status'] = 'pending';
     }
@@ -1153,6 +1174,14 @@ class TTPro_Api {
       'methods'  => ['GET','POST'],
       'permission_callback' => function() { return current_user_can('read'); },
       'callback' => [$this, 'rest_pdv_table'],
+    ]);
+
+    register_rest_route(self::REST_NAMESPACE, self::PDV_RESET_ROUTE, [
+      'methods'  => ['POST'],
+      'permission_callback' => function() {
+        return $this->user_can_manage_pdv_rejection();
+      },
+      'callback' => [$this, 'rest_reset_pdv'],
     ]);
 
     // Rutas + sub-rutas + PDVs del usuario autenticado
@@ -1469,6 +1498,59 @@ class TTPro_Api {
     ], 200);
   }
 
+  public function rest_reset_pdv(WP_REST_Request $req) {
+    $pdv_id = intval($req->get_param('pdv_id'));
+    if (!$pdv_id) {
+      return new WP_Error('tt_invalid_pdv', 'Punto de venta inválido', ['status' => 400]);
+    }
+
+    $post = get_post($pdv_id);
+    if (!$post || $post->post_type !== 'tt_pdv') {
+      return new WP_Error('tt_invalid_pdv', 'Punto de venta inválido', ['status' => 404]);
+    }
+
+    $this->reset_pdv_metadata($pdv_id);
+
+    $schema = $this->get_pdv_table_schema();
+    $row = $this->format_pdv_table_row($pdv_id, $schema);
+
+    return new WP_REST_Response([
+      'ok' => true,
+      'pdv_id' => $pdv_id,
+      'row' => $row,
+    ], 200);
+  }
+
+  private function reset_pdv_metadata($pdv_id) {
+    $meta_keys = [
+      'tt_pdv_answers',
+      'tt_pdv_geolocation',
+      'tt_pdv_filled_by',
+      'tt_pdv_filled_at',
+      'tt_pdv_filled_by_name',
+    ];
+
+    foreach ($meta_keys as $meta_key) {
+      delete_post_meta($pdv_id, $meta_key);
+    }
+
+    $questions = $this->build_catalog_questions();
+    foreach ($questions as $question) {
+      if (empty($question['meta_key'])) {
+        continue;
+      }
+      delete_post_meta($pdv_id, 'tt_answer_' . $question['meta_key']);
+    }
+
+    update_post_meta($pdv_id, 'tt_pdv_status', 'pending');
+
+    if (function_exists('delete_post_thumbnail')) {
+      delete_post_thumbnail($pdv_id);
+    }
+
+    clean_post_cache($pdv_id);
+  }
+
   private function enqueue_pdv_table_assets() {
     wp_enqueue_script('jquery');
 
@@ -1535,6 +1617,7 @@ class TTPro_Api {
       'scrollX'              => true,
       'dom'                  => '<"ttpro-table-toolbar"BfQ>t<"ttpro-table-footer"lip>',
       'buttons'              => ['copy','csv','excel','print'],
+      'rejectUrl'            => $this->user_can_manage_pdv_rejection() ? rest_url(self::REST_NAMESPACE . self::PDV_RESET_ROUTE) : '',
       'language'             => [
         'processing'  => 'Procesando...',
         'lengthMenu'  => 'Mostrar _MENU_ registros',
