@@ -21,6 +21,7 @@ class TTPro_Api {
     add_filter('mb_settings_pages', [$this,'register_settings_pages']);
     add_filter('rwmb_meta_boxes', [$this,'register_settings_fields']);
     add_shortcode('ttpro_pdv_table', [$this,'shortcode_pdv_table']);
+    add_shortcode('ttpro_pdv_editor', [$this,'shortcode_pdv_editor']);
   }
 
   /* ===================== CPTs ===================== */
@@ -841,6 +842,13 @@ class TTPro_Api {
       'meta_key' => 'tt_pdv_status',
     ]);
 
+    $add_column('pdv_edit', 'Editar', [
+      'orderable' => false,
+      'searchable' => false,
+      'className' => 'dt-body-center ttpro-pdv-edit-column',
+      'source' => 'computed',
+    ]);
+
     $add_column('pdv_route', 'Ruta', [
       'orderable' => false,
       'searchable' => false,
@@ -1099,9 +1107,15 @@ class TTPro_Api {
       'filled_at'   => (string) get_post_meta($post_id, 'tt_pdv_filled_at', true),
       'pdv_route'   => '',
       'pdv_subroute'=> '',
+      'pdv_edit'    => '',
       'pdv_reject'  => '',
       'pdv_delete'  => '',
     ];
+
+    $row['pdv_edit'] = sprintf(
+      '<a href="%s" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener">Editar</a>',
+      esc_url(get_permalink($post_id))
+    );
 
     if ($this->user_can_manage_pdv_rejection()) {
       $row['pdv_reject'] = sprintf(
@@ -1710,6 +1724,511 @@ class TTPro_Api {
         </thead>
         <tbody></tbody>
       </table>
+    </div>
+    <?php
+    return ob_get_clean();
+  }
+
+  private function enqueue_pdv_editor_assets() {
+    wp_enqueue_script('jquery');
+
+    wp_register_style(
+      'ttpro-pdv-editor',
+      plugins_url('assets/pdv-editor.css', __FILE__),
+      [],
+      '1.0.0'
+    );
+    wp_enqueue_style('ttpro-pdv-editor');
+
+    wp_register_script(
+      'ttpro-pdv-editor',
+      plugins_url('assets/pdv-editor.js', __FILE__),
+      ['jquery'],
+      '1.0.0',
+      true
+    );
+    wp_enqueue_script('ttpro-pdv-editor');
+  }
+
+  private function normalize_editor_conditions($field) {
+    if (empty($field['show_if'])) {
+      return [];
+    }
+
+    $raw = is_array($field['show_if']) ? $field['show_if'] : [$field['show_if']];
+    $normalized = [];
+
+    foreach ($raw as $cond) {
+      $id = '';
+      $values = [];
+
+      if (is_array($cond) && isset($cond['id'])) {
+        $id = is_scalar($cond['id']) ? (string) $cond['id'] : '';
+      }
+
+      if ($id === '') {
+        continue;
+      }
+
+      if (isset($cond['value'])) {
+        if (is_array($cond['value'])) {
+          foreach ($cond['value'] as $v) {
+            if (is_scalar($v)) {
+              $values[] = (string) $v;
+            }
+          }
+        } elseif (is_scalar($cond['value'])) {
+          $values[] = (string) $cond['value'];
+        }
+      }
+
+      $values = array_values(array_filter(array_map('trim', $values), function ($v) {
+        return $v !== '';
+      }));
+
+      if (empty($values)) {
+        continue;
+      }
+
+      $normalized[] = [
+        'id' => $id,
+        'value' => $values,
+      ];
+    }
+
+    return $normalized;
+  }
+
+  private function get_existing_pdv_answers($pdv_id, $fields) {
+    $answers = [];
+    $raw_answers = get_post_meta($pdv_id, 'tt_pdv_answers', true);
+    $decoded = json_decode($raw_answers, true);
+    if (!is_array($decoded)) {
+      $decoded = [];
+    }
+
+    foreach ($fields as $field) {
+      $id = isset($field['id']) ? (string) $field['id'] : '';
+      if ($id === '') {
+        continue;
+      }
+
+      if (array_key_exists($id, $decoded)) {
+        $answers[$id] = $decoded[$id];
+        continue;
+      }
+
+      $meta_key = !empty($field['meta_key']) ? $field['meta_key'] : sanitize_key($id);
+      if ($meta_key === '') {
+        continue;
+      }
+
+      $meta_value = get_post_meta($pdv_id, 'tt_answer_' . $meta_key, true);
+      if ($meta_value === '' || $meta_value === null) {
+        continue;
+      }
+
+      $type = isset($field['type']) ? $field['type'] : '';
+
+      if ($type === 'checkbox') {
+        if (is_array($meta_value)) {
+          $answers[$id] = $meta_value;
+        } else {
+          $parts = preg_split('/\s*,\s*/', (string) $meta_value);
+          $answers[$id] = array_values(array_filter(array_map('trim', $parts), function ($v) {
+            return $v !== '';
+          }));
+        }
+      } elseif ($type === 'geo') {
+        if (is_array($meta_value)) {
+          $answers[$id] = $meta_value;
+        } else {
+          $parts = preg_split('/\s*,\s*/', (string) $meta_value);
+          $lat = isset($parts[0]) ? trim($parts[0]) : '';
+          $lng = isset($parts[1]) ? trim($parts[1]) : '';
+          $answers[$id] = ['lat' => $lat, 'lng' => $lng];
+        }
+      } else {
+        $answers[$id] = $meta_value;
+      }
+    }
+
+    return $answers;
+  }
+
+  private function render_editor_field($field, $value, $existing_photo) {
+    $id = isset($field['id']) ? $field['id'] : '';
+    $label = isset($field['label']) ? $field['label'] : $id;
+    $type = isset($field['type']) ? $field['type'] : 'text';
+    $required = !empty($field['required']);
+
+    $conditions = $this->normalize_editor_conditions($field);
+    $attrs = [
+      'class' => 'ttpro-pdv-editor-field',
+      'data-field-id' => esc_attr($id),
+      'data-field-type' => esc_attr($type),
+    ];
+
+    if (!empty($conditions)) {
+      $attrs['data-show-if'] = esc_attr(wp_json_encode($conditions));
+    }
+
+    $attr_html = '';
+    foreach ($attrs as $key => $val) {
+      if ($val === '') {
+        continue;
+      }
+      $attr_html .= ' ' . $key . '="' . $val . '"';
+    }
+
+    ob_start();
+    ?>
+    <div<?php echo $attr_html; ?>>
+      <label class="ttpro-field-label" for="ttpro-field-<?php echo esc_attr($id); ?>">
+        <?php echo esc_html($label); ?><?php echo $required ? ' <span class="ttpro-required">*</span>' : ''; ?>
+      </label>
+    <?php
+
+    switch ($type) {
+      case 'textarea':
+        ?>
+        <textarea class="ttpro-input" id="ttpro-field-<?php echo esc_attr($id); ?>" name="ttpro_answers[<?php echo esc_attr($id); ?>]" rows="4" <?php echo $required ? 'required' : ''; ?>><?php echo esc_textarea(is_scalar($value) ? (string) $value : ''); ?></textarea>
+        <?php
+        break;
+      case 'number':
+        ?>
+        <input type="number" class="ttpro-input" id="ttpro-field-<?php echo esc_attr($id); ?>" name="ttpro_answers[<?php echo esc_attr($id); ?>]" value="<?php echo esc_attr(is_scalar($value) ? (string) $value : ''); ?>" <?php echo $required ? 'required' : ''; ?>>
+        <?php
+        break;
+      case 'radio':
+      case 'post':
+        $options = isset($field['options']) && is_array($field['options']) ? $field['options'] : [];
+        ?>
+        <div class="ttpro-options">
+          <?php foreach ($options as $opt_index => $opt):
+            $opt_val = isset($opt['value']) ? (string) $opt['value'] : '';
+            $opt_label = isset($opt['label']) ? $opt['label'] : $opt_val;
+            $checked = is_scalar($value) && (string) $value === $opt_val;
+          ?>
+            <label class="ttpro-option">
+              <input type="radio" name="ttpro_answers[<?php echo esc_attr($id); ?>]" value="<?php echo esc_attr($opt_val); ?>" <?php checked($checked); ?> <?php echo $required ? 'required' : ''; ?>>
+              <span><?php echo esc_html($opt_label); ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+        <?php
+        break;
+      case 'checkbox':
+        $options = isset($field['options']) && is_array($field['options']) ? $field['options'] : [];
+        $values = is_array($value) ? array_map('strval', $value) : [];
+        ?>
+        <div class="ttpro-options">
+          <?php foreach ($options as $opt_index => $opt):
+            $opt_val = isset($opt['value']) ? (string) $opt['value'] : '';
+            $opt_label = isset($opt['label']) ? $opt['label'] : $opt_val;
+            $checked = in_array($opt_val, $values, true);
+          ?>
+            <label class="ttpro-option">
+              <input type="checkbox" name="ttpro_answers[<?php echo esc_attr($id); ?>][]" value="<?php echo esc_attr($opt_val); ?>" <?php checked($checked); ?>>
+              <span><?php echo esc_html($opt_label); ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+        <?php
+        break;
+      case 'geo':
+        $lat = '';
+        $lng = '';
+        $acc = '';
+        if (is_array($value)) {
+          $lat = isset($value['lat']) ? (string) $value['lat'] : '';
+          $lng = isset($value['lng']) ? (string) $value['lng'] : '';
+          $acc = isset($value['accuracy']) ? (string) $value['accuracy'] : '';
+        }
+        ?>
+        <div class="ttpro-geo-fields">
+          <div>
+            <label for="ttpro-field-<?php echo esc_attr($id); ?>-lat">Latitud</label>
+            <input type="text" class="ttpro-input" id="ttpro-field-<?php echo esc_attr($id); ?>-lat" name="ttpro_geo[<?php echo esc_attr($id); ?>][lat]" value="<?php echo esc_attr($lat); ?>" <?php echo $required ? 'required' : ''; ?>>
+          </div>
+          <div>
+            <label for="ttpro-field-<?php echo esc_attr($id); ?>-lng">Longitud</label>
+            <input type="text" class="ttpro-input" id="ttpro-field-<?php echo esc_attr($id); ?>-lng" name="ttpro_geo[<?php echo esc_attr($id); ?>][lng]" value="<?php echo esc_attr($lng); ?>" <?php echo $required ? 'required' : ''; ?>>
+          </div>
+          <div>
+            <label for="ttpro-field-<?php echo esc_attr($id); ?>-acc">Precisión (m)</label>
+            <input type="text" class="ttpro-input" id="ttpro-field-<?php echo esc_attr($id); ?>-acc" name="ttpro_geo[<?php echo esc_attr($id); ?>][accuracy]" value="<?php echo esc_attr($acc); ?>">
+          </div>
+        </div>
+        <?php
+        break;
+      case 'photo':
+        $has_photo = !empty($existing_photo);
+        ?>
+        <div class="ttpro-photo-field">
+          <input type="file" accept="image/*" name="ttpro_photo[<?php echo esc_attr($id); ?>]" id="ttpro-field-<?php echo esc_attr($id); ?>">
+          <input type="hidden" name="ttpro_existing_photo[<?php echo esc_attr($id); ?>]" value="<?php echo $has_photo ? '1' : '0'; ?>">
+          <?php if ($has_photo): ?>
+            <div class="ttpro-photo-actions">
+              <span class="ttpro-current-photo">Ya existe una foto asociada.</span>
+              <label class="ttpro-option ttpro-remove-photo">
+                <input type="checkbox" name="ttpro_remove_photo[<?php echo esc_attr($id); ?>]" value="1">
+                <span>Eliminar la foto actual</span>
+              </label>
+            </div>
+          <?php endif; ?>
+        </div>
+        <?php
+        break;
+      default:
+        ?>
+        <input type="text" class="ttpro-input" id="ttpro-field-<?php echo esc_attr($id); ?>" name="ttpro_answers[<?php echo esc_attr($id); ?>]" value="<?php echo esc_attr(is_scalar($value) ? (string) $value : ''); ?>" <?php echo $required ? 'required' : ''; ?>>
+        <?php
+        break;
+    }
+
+    if (!empty($field['instruction_image'])) {
+      $url = esc_url($field['instruction_image']);
+      ?>
+      <div class="ttpro-instruction">
+        <img src="<?php echo $url; ?>" alt="<?php echo esc_attr($label); ?>" loading="lazy">
+      </div>
+      <?php
+    }
+
+    ?>
+    </div>
+    <?php
+    return ob_get_clean();
+  }
+
+  private function sanitize_editor_value($field, &$errors, $pdv_id) {
+    $id = isset($field['id']) ? $field['id'] : '';
+    $type = isset($field['type']) ? $field['type'] : 'text';
+    $required = !empty($field['required']);
+
+    $answers_post = isset($_POST['ttpro_answers']) && is_array($_POST['ttpro_answers']) ? $_POST['ttpro_answers'] : [];
+    $geo_post = isset($_POST['ttpro_geo']) && is_array($_POST['ttpro_geo']) ? $_POST['ttpro_geo'] : [];
+    $existing_photo_post = isset($_POST['ttpro_existing_photo']) && is_array($_POST['ttpro_existing_photo']) ? $_POST['ttpro_existing_photo'] : [];
+    $remove_photo_post = isset($_POST['ttpro_remove_photo']) && is_array($_POST['ttpro_remove_photo']) ? $_POST['ttpro_remove_photo'] : [];
+    $photo_files = isset($_FILES['ttpro_photo']) && is_array($_FILES['ttpro_photo']) ? $_FILES['ttpro_photo'] : null;
+
+    $value = null;
+
+    if ($type === 'checkbox') {
+      $value = isset($answers_post[$id]) ? (array) $answers_post[$id] : [];
+      $value = array_values(array_filter(array_map('sanitize_text_field', $value), function ($v) {
+        return $v !== '';
+      }));
+      if ($required && empty($value)) {
+        $errors[] = sprintf(__('El campo "%s" es obligatorio.', 'ttpro'), $field['label']);
+      }
+      return $value;
+    }
+
+    if ($type === 'geo') {
+      $geo = isset($geo_post[$id]) ? $geo_post[$id] : [];
+      $lat = isset($geo['lat']) ? sanitize_text_field($geo['lat']) : '';
+      $lng = isset($geo['lng']) ? sanitize_text_field($geo['lng']) : '';
+      $acc = isset($geo['accuracy']) ? sanitize_text_field($geo['accuracy']) : '';
+
+      if ($required && ($lat === '' || $lng === '')) {
+        $errors[] = sprintf(__('El campo "%s" requiere latitud y longitud.', 'ttpro'), $field['label']);
+      }
+
+      if ($lat === '' && $lng === '' && $acc === '') {
+        return '';
+      }
+
+      $out = ['lat' => $lat, 'lng' => $lng];
+      if ($acc !== '') {
+        $out['accuracy'] = $acc;
+      }
+      return $out;
+    }
+
+    if ($type === 'photo') {
+      $has_existing = !empty($existing_photo_post[$id]);
+      $remove = !empty($remove_photo_post[$id]);
+
+      if ($photo_files && !empty($photo_files['name'][$id])) {
+        $file = [
+          'name'     => $photo_files['name'][$id],
+          'type'     => $photo_files['type'][$id],
+          'tmp_name' => $photo_files['tmp_name'][$id],
+          'error'    => $photo_files['error'][$id],
+          'size'     => $photo_files['size'][$id],
+        ];
+
+        if ($file['error'] === UPLOAD_ERR_OK && $file['tmp_name']) {
+          require_once ABSPATH . 'wp-admin/includes/file.php';
+          require_once ABSPATH . 'wp-admin/includes/image.php';
+
+          $upload = wp_handle_upload($file, ['test_form' => false]);
+          if (isset($upload['error'])) {
+            $errors[] = $upload['error'];
+            return $has_existing && !$remove ? '1' : '';
+          }
+
+          $filetype = wp_check_filetype($upload['file'], null);
+          $attachment = [
+            'post_mime_type' => $filetype['type'],
+            'post_title'     => sanitize_file_name($file['name']),
+            'post_content'   => '',
+            'post_status'    => 'inherit',
+          ];
+
+          $attach_id = wp_insert_attachment($attachment, $upload['file'], $pdv_id);
+          if (!is_wp_error($attach_id)) {
+            $attach_data = wp_generate_attachment_metadata($attach_id, $upload['file']);
+            wp_update_attachment_metadata($attach_id, $attach_data);
+            set_post_thumbnail($pdv_id, $attach_id);
+            return '1';
+          }
+
+          $errors[] = __('No se pudo guardar la imagen.', 'ttpro');
+          return $has_existing && !$remove ? '1' : '';
+        } elseif ($file['error'] !== UPLOAD_ERR_NO_FILE) {
+          $errors[] = __('No se pudo subir la imagen.', 'ttpro');
+          return $has_existing && !$remove ? '1' : '';
+        }
+      }
+
+      if ($remove) {
+        if (function_exists('delete_post_thumbnail')) {
+          delete_post_thumbnail($pdv_id);
+        }
+        return '';
+      }
+
+      if ($required && !$has_existing) {
+        $errors[] = sprintf(__('El campo "%s" es obligatorio.', 'ttpro'), $field['label']);
+      }
+
+      return $has_existing ? '1' : '';
+    }
+
+    $raw = isset($answers_post[$id]) ? $answers_post[$id] : '';
+
+    if ($type === 'textarea') {
+      $value = sanitize_textarea_field($raw);
+    } else {
+      $value = is_scalar($raw) ? sanitize_text_field($raw) : '';
+    }
+
+    if ($required && $value === '') {
+      $errors[] = sprintf(__('El campo "%s" es obligatorio.', 'ttpro'), $field['label']);
+    }
+
+    return $value;
+  }
+
+  public function shortcode_pdv_editor($atts) {
+    $this->enqueue_pdv_editor_assets();
+
+    global $post;
+    $pdv_post = $post instanceof WP_Post ? $post : null;
+
+    if (!$pdv_post || $pdv_post->post_type !== 'tt_pdv') {
+      return '<div class="ttpro-editor-notice">' . esc_html__('Este formulario sólo está disponible para puntos de venta.', 'ttpro') . '</div>';
+    }
+
+    $pdv_id = $pdv_post->ID;
+
+    if (!current_user_can('edit_post', $pdv_id)) {
+      return '<div class="ttpro-editor-notice">' . esc_html__('No tienes permisos para editar este punto de venta.', 'ttpro') . '</div>';
+    }
+
+    $fields = $this->build_catalog_questions();
+    $existing_answers = $this->get_existing_pdv_answers($pdv_id, $fields);
+
+    $notice = '';
+    $errors = [];
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ttpro_pdv_editor_nonce'])) {
+      $nonce = $_POST['ttpro_pdv_editor_nonce'];
+      if (!wp_verify_nonce($nonce, 'ttpro_pdv_editor_' . $pdv_id)) {
+        $errors[] = __('Nonce inválido. Recarga la página e inténtalo nuevamente.', 'ttpro');
+      } else {
+        $answers = [];
+        $geo_payload = null;
+
+        foreach ($fields as $field) {
+          $id = isset($field['id']) ? $field['id'] : '';
+          if ($id === '') {
+            continue;
+          }
+
+          $value = $this->sanitize_editor_value($field, $errors, $pdv_id);
+
+          if ($field['type'] === 'geo' && (is_array($value) || $value === '')) {
+            $geo_payload = $value;
+          }
+
+          $answers[$id] = $value;
+        }
+
+        if (empty($errors)) {
+          update_post_meta($pdv_id, 'tt_pdv_answers', wp_json_encode($answers));
+          $this->sync_pdv_answers_meta($pdv_id, $answers);
+
+          if ($geo_payload !== null) {
+            update_post_meta($pdv_id, 'tt_pdv_geolocation', wp_json_encode($geo_payload));
+          }
+
+          $current_user_id = get_current_user_id();
+          if ($current_user_id) {
+            update_post_meta($pdv_id, 'tt_pdv_filled_by', $current_user_id);
+            update_post_meta($pdv_id, 'tt_pdv_filled_at', current_time('mysql'));
+            $user_obj = get_userdata($current_user_id);
+            if ($user_obj) {
+              update_post_meta($pdv_id, 'tt_pdv_filled_by_name', $user_obj->display_name);
+            }
+          }
+
+          update_post_meta($pdv_id, 'tt_pdv_status', 'synced');
+          clean_post_cache($pdv_id);
+
+          $existing_answers = $answers;
+          $notice = '<div class="ttpro-editor-notice ttpro-editor-notice--success">' . esc_html__('Información actualizada correctamente.', 'ttpro') . '</div>';
+        }
+      }
+    }
+
+    if (!empty($errors)) {
+      $error_items = '';
+      foreach ($errors as $err) {
+        $error_items .= '<li>' . esc_html($err) . '</li>';
+      }
+      $notice .= '<div class="ttpro-editor-notice ttpro-editor-notice--error"><ul>' . $error_items . '</ul></div>';
+    }
+
+    ob_start();
+    ?>
+    <div class="ttpro-pdv-editor">
+      <?php echo $notice; ?>
+      <form class="ttpro-pdv-editor-form" method="post" enctype="multipart/form-data">
+        <?php wp_nonce_field('ttpro_pdv_editor_' . $pdv_id, 'ttpro_pdv_editor_nonce'); ?>
+        <?php foreach ($fields as $field):
+          $id = isset($field['id']) ? $field['id'] : '';
+          if ($id === '') {
+            continue;
+          }
+          $value = isset($existing_answers[$id]) ? $existing_answers[$id] : '';
+          $has_photo = false;
+          if (isset($field['type']) && $field['type'] === 'photo') {
+            $has_photo = ($value === '1' || $value === 1 || (is_array($value) && !empty($value)));
+            if (!$has_photo) {
+              $thumb_id = get_post_thumbnail_id($pdv_id);
+              $has_photo = $thumb_id ? true : false;
+            }
+          }
+          echo $this->render_editor_field($field, $value, $has_photo);
+        endforeach; ?>
+        <div class="ttpro-editor-actions">
+          <button type="submit" class="button button-primary"><?php esc_html_e('Guardar cambios', 'ttpro'); ?></button>
+        </div>
+      </form>
     </div>
     <?php
     return ob_get_clean();
