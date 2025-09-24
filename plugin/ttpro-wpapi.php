@@ -1671,7 +1671,7 @@ class TTPro_Api {
       'ajaxMethod'           => 'POST',
       'order'                => [[0, 'asc']],
       'scrollX'              => true,
-      'dom'                  => '<"ttpro-table-toolbar"BfQ>t<"ttpro-table-footer"lip>',
+      'dom'                  => '<"bg-white border overflow-hidden pb-0 pt-3 px-3 rounded-lg" <"d-flex flex-column flex-md-row justify-content-between align-items-center"<"mb-3"B><"mb-3"f>> <"mb-3"Q> <"mb-3"t> <"align-items-center d-flex flex-column flex-md-row justify-content-between"<"mb-3"l><"mb-3"i><"mb-3"p>> >',
       'buttons'              => ['copy','csv','excel','print'],
       'rejectUrl'            => $this->user_can_manage_pdv_rejection() ? rest_url(self::REST_NAMESPACE . self::PDV_RESET_ROUTE) : '',
       'deleteUrl'            => $this->user_can_manage_pdv_rejection() ? rest_url(self::REST_NAMESPACE . self::PDV_TRASH_ROUTE) : '',
