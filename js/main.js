@@ -1204,6 +1204,7 @@
 
     const existingResp = (await idb.all('responses')).find((r) => String(r.pdvId) === String(pdvId));
     let answers = existingResp ? (existingResp.answers || {}) : {};
+    answers = Object.assign({}, answers);
     let step = 0;
 
     const photoField = fields.find((f) => f.type === 'photo');
@@ -1229,6 +1230,55 @@
         return String(item).trim();
       });
     }
+
+    function isEmptyAnswerValue(value) {
+      if (value === undefined || value === null) return true;
+      if (typeof value === 'string') return value.trim() === '';
+      if (Array.isArray(value)) {
+        if (value.length === 0) return true;
+        return value.every((item) => isEmptyAnswerValue(item));
+      }
+      if (typeof value === 'object') {
+        return Object.keys(value).length === 0;
+      }
+      return false;
+    }
+
+    function normalizeText(text) {
+      if (typeof text !== 'string') return '';
+      return text.toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    function applyDefaultAnswer(fieldMatcher, defaultValue) {
+      if (!fieldMatcher || typeof fieldMatcher !== 'function') return;
+      if (defaultValue === undefined || defaultValue === null) return;
+      const val = typeof defaultValue === 'string' ? defaultValue.trim() : defaultValue;
+      if (val === '' || (typeof val === 'object' && val !== null && Object.keys(val).length === 0)) return;
+
+      const field = fields.find(fieldMatcher);
+      if (!field || !field.id) return;
+
+      if (!isEmptyAnswerValue(answers[field.id])) return;
+
+      answers[field.id] = val;
+    }
+
+    const pdvName = pdv && typeof pdv.name === 'string' ? pdv.name.trim() : '';
+    applyDefaultAnswer((f) => {
+      const id = typeof f.id === 'string' ? f.id.trim().toLowerCase() : '';
+      const metaKey = typeof f.meta_key === 'string' ? f.meta_key.trim().toLowerCase() : '';
+      return id === 'nombre' || metaKey === 'nombre';
+    }, pdvName);
+
+    const pdvAddress = pdv && typeof pdv.address === 'string' ? pdv.address.trim() : '';
+    const normalizedAddressLabel = normalizeText('¿Es esta la dirección correcta? Si no, actualícela:');
+    applyDefaultAnswer((f) => {
+      const id = typeof f.id === 'string' ? f.id.trim().toLowerCase() : '';
+      const metaKey = typeof f.meta_key === 'string' ? f.meta_key.trim().toLowerCase() : '';
+      if (id === 'direccion' || metaKey === 'direccion') return true;
+      const label = normalizeText(f.label);
+      return label === normalizedAddressLabel;
+    }, pdvAddress);
 
     function shouldShowField(f) {
       if (!f.show_if) return true;
