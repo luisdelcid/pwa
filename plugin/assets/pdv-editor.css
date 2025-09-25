@@ -1,16 +1,18 @@
 .ttpro-pdv-editor {
-  background: #fff;
+  background: #ffffff;
+  border-radius: 10px;
   padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
 }
 
 .ttpro-editor-notice {
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  border-radius: 6px;
-  background: #f3f4f6;
-  color: #111827;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.45;
+  background: #f8fafc;
+  color: #1f2937;
 }
 
 .ttpro-editor-notice--error {
@@ -23,109 +25,32 @@
   color: #166534;
 }
 
-.ttpro-pdv-editor-field {
-  margin-bottom: 20px;
-}
-
-.ttpro-field-hidden {
-  display: none;
-}
-
-.ttpro-field-label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.ttpro-required {
-  color: #dc2626;
-}
-
-.ttpro-input {
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 4px;
-  border: 1px solid #d1d5db;
-  font-size: 14px;
-}
-
-.ttpro-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-}
-
-.ttpro-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-}
-
-.ttpro-instruction {
-  margin-top: 8px;
-}
-
-.ttpro-instruction img {
-  max-width: 100%;
-  border-radius: 4px;
-  border: 1px solid #e5e7eb;
-}
-
-.ttpro-geo-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-}
-
-.ttpro-photo-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.ttpro-photo-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-}
-
-.ttpro-current-photo {
-  color: #4b5563;
-}
-
-.ttpro-remove-photo input {
-  margin-right: 4px;
-}
-
-.ttpro-editor-actions {
-  margin-top: 24px;
-}
-
-.ttpro-editor-actions .button {
-  padding: 10px 20px;
-  font-size: 15px;
-}
-
 .ttpro-step-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  gap: 12px;
 }
 
 .ttpro-step-prev {
-  background: transparent;
+  appearance: none;
   border: none;
-  color: #2563eb;
-  cursor: pointer;
+  background: transparent;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 14px;
   font-weight: 500;
-  padding: 0;
+  color: #2563eb;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.ttpro-step-prev svg {
+  width: 16px;
+  height: 16px;
 }
 
 .ttpro-step-prev:hover {
@@ -138,31 +63,48 @@
 }
 
 .ttpro-step-indicator {
-  background: #2563eb;
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
-  border-radius: 999px;
-  padding: 4px 12px;
+  color: #ffffff;
+  background: linear-gradient(120deg, #2563eb, #4f46e5);
 }
 
 .ttpro-step-progress {
+  position: relative;
+  width: 100%;
   height: 6px;
   border-radius: 999px;
   background: #e5e7eb;
   overflow: hidden;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .ttpro-step-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #2563eb, #4f46e5);
+  border-radius: inherit;
+  background: linear-gradient(120deg, #2563eb, #4f46e5);
   transition: width 0.25s ease;
 }
 
 .ttpro-step-body {
   min-height: 240px;
+}
+
+.ttpro-pdv-editor-field {
+  margin-bottom: 24px;
+}
+
+.ttpro-pdv-editor-field:last-child {
+  margin-bottom: 0;
 }
 
 .ttpro-pdv-editor-field.ttpro-step-hidden-step {
@@ -173,30 +115,127 @@
   display: block;
 }
 
+.ttpro-field-hidden {
+  display: none !important;
+}
+
+.ttpro-field-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.ttpro-required {
+  color: #dc2626;
+}
+
+.ttpro-input,
+.ttpro-pdv-editor-field input[type="text"],
+.ttpro-pdv-editor-field input[type="number"],
+.ttpro-pdv-editor-field input[type="email"],
+.ttpro-pdv-editor-field input[type="tel"],
+.ttpro-pdv-editor-field select,
+.ttpro-pdv-editor-field textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 10px 12px;
+  font-size: 15px;
+  line-height: 1.45;
+  background: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ttpro-input:focus,
+.ttpro-pdv-editor-field input[type="text"]:focus,
+.ttpro-pdv-editor-field input[type="number"]:focus,
+.ttpro-pdv-editor-field input[type="email"]:focus,
+.ttpro-pdv-editor-field input[type="tel"]:focus,
+.ttpro-pdv-editor-field select:focus,
+.ttpro-pdv-editor-field textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  outline: none;
+}
+
+.ttpro-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.ttpro-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.ttpro-instruction {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.ttpro-instruction img {
+  display: block;
+  max-width: 100%;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.ttpro-geo-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.ttpro-photo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ttpro-photo-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.ttpro-current-photo {
+  font-size: 13px;
+  color: #475569;
+}
+
 .ttpro-step-actions {
-  margin-top: 24px;
+  margin-top: 28px;
   position: sticky;
   bottom: 0;
-  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 40%);
-  padding-top: 16px;
+  padding-top: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #ffffff 45%);
 }
 
 .ttpro-step-next {
   width: 100%;
-  background: #2563eb;
   border: none;
-  color: #fff;
+  border-radius: 10px;
+  background: linear-gradient(120deg, #2563eb, #4f46e5);
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
-  padding: 12px 18px;
-  border-radius: 8px;
+  padding: 14px 18px;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.25);
 }
 
 .ttpro-step-next:hover {
-  background: #1d4ed8;
+  filter: brightness(1.05);
 }
 
 .ttpro-step-next:active {
@@ -204,17 +243,23 @@
 }
 
 .ttpro-step-next[disabled] {
-  background: #93c5fd;
   cursor: not-allowed;
+  background: #94a3b8;
   box-shadow: none;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 720px) {
   .ttpro-pdv-editor {
     padding: 20px 16px;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .ttpro-step-body {
     min-height: 200px;
+  }
+
+  .ttpro-options {
+    grid-template-columns: 1fr;
   }
 }
