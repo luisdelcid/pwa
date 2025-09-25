@@ -19,17 +19,54 @@
   }
 
   function normalizeConditionValue(value){
-    return normalizeValues(value).filter(function(item){
+    var raw = normalizeValues(value);
+    var parts = [];
+
+    raw.forEach(function(item){
+      if (!item){
+        return;
+      }
+      var needsSplit = item.indexOf('|') !== -1 || item.indexOf(',') !== -1;
+      if (needsSplit){
+        item.split(/[|,]/).forEach(function(piece){
+          var trimmed = String(piece || '').trim();
+          if (trimmed){
+            parts.push(trimmed);
+          }
+        });
+        return;
+      }
+      parts.push(item);
+    });
+
+    return parts.filter(function(item){
       return item !== '';
     });
+  }
+
+  var htmlDecodeEl = null;
+
+  function decodeHtmlEntities(str){
+    if (typeof str !== 'string'){ return str; }
+    if (str.indexOf('&') === -1){ return str; }
+    if (!htmlDecodeEl){
+      htmlDecodeEl = document.createElement('textarea');
+    }
+    htmlDecodeEl.innerHTML = str;
+    return htmlDecodeEl.value;
   }
 
   function parseConditions(raw){
     if (!raw){
       return [];
     }
+    var text = String(raw);
+    if (!text){
+      return [];
+    }
+    var decoded = decodeHtmlEntities(text);
     try {
-      var parsed = JSON.parse(raw);
+      var parsed = JSON.parse(decoded);
       if (Array.isArray(parsed)){
         return parsed.map(function(item){
           if (!item || typeof item !== 'object'){
@@ -57,7 +94,40 @@
         }
         return [{ id: singleId, value: singleValues }];
       }
-    } catch (e){}
+    } catch (e){
+      try {
+        if (decoded !== text){
+          var reparsed = JSON.parse(text);
+          if (Array.isArray(reparsed)){
+            return reparsed.map(function(item){
+              if (!item || typeof item !== 'object'){
+                return null;
+              }
+              var rid = '';
+              if (item.id !== undefined && item.id !== null){
+                rid = String(item.id);
+              }
+              var rvalues = normalizeConditionValue(item.value);
+              if (!rid || !rvalues.length){
+                return null;
+              }
+              return { id: rid, value: rvalues };
+            }).filter(Boolean);
+          }
+          if (reparsed && typeof reparsed === 'object'){
+            var ridSingle = '';
+            if (reparsed.id !== undefined && reparsed.id !== null){
+              ridSingle = String(reparsed.id);
+            }
+            var rSingleValues = normalizeConditionValue(reparsed.value);
+            if (!ridSingle || !rSingleValues.length){
+              return [];
+            }
+            return [{ id: ridSingle, value: rSingleValues }];
+          }
+        }
+      } catch (err){}
+    }
     return [];
   }
 
@@ -70,7 +140,7 @@
       if (!cond || !cond.id){
         return true;
       }
-      var expectedValues = normalizeValues(cond.value);
+      var expectedValues = normalizeConditionValue(cond.value);
       if (expectedValues.length === 0){
         return false;
       }
@@ -78,12 +148,9 @@
       if (actualValues.length === 0){
         return false;
       }
-      for (var i = 0; i < expectedValues.length; i++){
-        if (actualValues.indexOf(expectedValues[i]) !== -1){
-          return true;
-        }
-      }
-      return false;
+      return expectedValues.some(function(expected){
+        return actualValues.indexOf(expected) !== -1;
+      });
     });
   }
 
