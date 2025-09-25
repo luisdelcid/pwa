@@ -1736,7 +1736,7 @@ class TTPro_Api {
       'ttpro-pdv-editor',
       plugins_url('assets/pdv-editor.css', __FILE__),
       [],
-      '1.0.0'
+      '1.1.0'
     );
     wp_enqueue_style('ttpro-pdv-editor');
 
@@ -1744,7 +1744,7 @@ class TTPro_Api {
       'ttpro-pdv-editor',
       plugins_url('assets/pdv-editor.js', __FILE__),
       ['jquery'],
-      '1.0.0',
+      '1.1.0',
       true
     );
     wp_enqueue_script('ttpro-pdv-editor');
@@ -1867,6 +1867,7 @@ class TTPro_Api {
       'class' => 'ttpro-pdv-editor-field',
       'data-field-id' => esc_attr($id),
       'data-field-type' => esc_attr($type),
+      'data-required' => $required ? '1' : '0',
     ];
 
     if (!empty($conditions)) {
@@ -2203,30 +2204,53 @@ class TTPro_Api {
       $notice .= '<div class="ttpro-editor-notice ttpro-editor-notice--error"><ul>' . $error_items . '</ul></div>';
     }
 
+    $next_label = __('Siguiente', 'ttpro');
+    $final_label = __('Guardar cambios', 'ttpro');
+    $prev_label = __('Anterior', 'ttpro');
+
     ob_start();
     ?>
     <div class="ttpro-pdv-editor">
       <?php echo $notice; ?>
       <form class="ttpro-pdv-editor-form" method="post" enctype="multipart/form-data">
         <?php wp_nonce_field('ttpro_pdv_editor_' . $pdv_id, 'ttpro_pdv_editor_nonce'); ?>
-        <?php foreach ($fields as $field):
-          $id = isset($field['id']) ? $field['id'] : '';
-          if ($id === '') {
-            continue;
-          }
-          $value = isset($existing_answers[$id]) ? $existing_answers[$id] : '';
-          $has_photo = false;
-          if (isset($field['type']) && $field['type'] === 'photo') {
-            $has_photo = ($value === '1' || $value === 1 || (is_array($value) && !empty($value)));
-            if (!$has_photo) {
-              $thumb_id = get_post_thumbnail_id($pdv_id);
-              $has_photo = $thumb_id ? true : false;
+        <noscript>
+          <div class="ttpro-editor-notice ttpro-editor-notice--error">
+            <?php esc_html_e('Este formulario requiere JavaScript para completar las respuestas.', 'ttpro'); ?>
+          </div>
+        </noscript>
+        <div class="ttpro-step-header">
+          <button type="button" class="ttpro-step-prev" disabled>&larr; <?php echo esc_html($prev_label); ?></button>
+          <span class="ttpro-step-indicator" aria-live="polite">1/1</span>
+        </div>
+        <div class="ttpro-step-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="ttpro-step-progress-bar"></div>
+        </div>
+        <div class="ttpro-step-body">
+          <?php foreach ($fields as $field):
+            $id = isset($field['id']) ? $field['id'] : '';
+            if ($id === '') {
+              continue;
             }
-          }
-          echo $this->render_editor_field($field, $value, $has_photo);
-        endforeach; ?>
-        <div class="ttpro-editor-actions">
-          <button type="submit" class="button button-primary"><?php esc_html_e('Guardar cambios', 'ttpro'); ?></button>
+            $value = isset($existing_answers[$id]) ? $existing_answers[$id] : '';
+            $has_photo = false;
+            if (isset($field['type']) && $field['type'] === 'photo') {
+              $has_photo = ($value === '1' || $value === 1 || (is_array($value) && !empty($value)));
+              if (!$has_photo) {
+                $thumb_id = get_post_thumbnail_id($pdv_id);
+                $has_photo = $thumb_id ? true : false;
+              }
+            }
+            echo $this->render_editor_field($field, $value, $has_photo);
+          endforeach; ?>
+        </div>
+        <div class="ttpro-step-actions">
+          <button
+            type="button"
+            class="ttpro-step-next"
+            data-default-label="<?php echo esc_attr($next_label); ?>"
+            data-final-label="<?php echo esc_attr($final_label); ?>"
+          ><?php echo esc_html($next_label); ?></button>
         </div>
       </form>
     </div>
