@@ -116,6 +116,7 @@
       return '';
     }
 
+
     if (type === 'geo'){
       var lat = String(($field.find('[name$="[lat]"]').val() || '')).trim();
       var lng = String(($field.find('[name$="[lng]"]').val() || '')).trim();
@@ -299,6 +300,7 @@
     }
 
     var state = { step: 0, answers: {} };
+
     var $stepIndicator = $form.find('.ttpro-step-indicator');
     var $progressBar = $form.find('.ttpro-step-progress-bar');
     var $progress = $form.find('.ttpro-step-progress');
@@ -390,6 +392,7 @@
     }
 
     function applyConditions(answers){
+
       $fields.each(function(){
         var $field = $(this);
         var conditions = getConditionsForField($field);
@@ -406,6 +409,7 @@
       var answers = collectAnswers($fields);
       state.answers = answers;
       applyConditions(answers);
+
       updateUI();
     }
 
@@ -438,6 +442,7 @@
       }
       state.step += 1;
       refresh();
+
     });
 
     $prevBtn.on('click', function(e){
@@ -445,6 +450,7 @@
       if (state.step > 0){
         state.step -= 1;
         refresh();
+
       }
     });
 
