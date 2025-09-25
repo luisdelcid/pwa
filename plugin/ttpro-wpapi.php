@@ -410,41 +410,94 @@ class TTPro_Api {
         }, $q['options']);
       }
 
-      if (!empty($q['show_if']) && is_array($q['show_if'])) {
+      if (!empty($q['show_if'])) {
+        $raw_show_if = is_array($q['show_if']) ? $q['show_if'] : [];
+
+        if (isset($raw_show_if['cond_id']) || isset($raw_show_if['cond_value']) || isset($raw_show_if['id']) || isset($raw_show_if['value'])) {
+          $raw_show_if = [$raw_show_if];
+        }
+
+        $raw_show_if = array_values(array_filter($raw_show_if, function ($item) {
+          return is_array($item) && !empty($item);
+        }));
+
         $conds = array_map(function ($cond) {
-          $id_raw = isset($cond['cond_id']) ? $cond['cond_id'] : '';
-          $value_raw = isset($cond['cond_value']) ? $cond['cond_value'] : '';
+          $id_raw = '';
+          if (isset($cond['cond_id'])) {
+            $id_raw = $cond['cond_id'];
+          } elseif (isset($cond['id'])) {
+            $id_raw = $cond['id'];
+          }
+
+          $value_raw = null;
+          if (array_key_exists('cond_value', $cond)) {
+            $value_raw = $cond['cond_value'];
+          } elseif (array_key_exists('value', $cond)) {
+            $value_raw = $cond['value'];
+          }
 
           $id = is_scalar($id_raw) ? trim((string) $id_raw) : '';
 
+          $values = [];
           if (is_array($value_raw)) {
-            $value = array_map(function ($v) {
+            $values = array_map(function ($v) {
               return is_scalar($v) ? trim((string) $v) : '';
             }, $value_raw);
-            $value = array_values(array_filter($value, function ($v) {
-              return $v !== '';
-            }));
-          } else {
-            $value = is_scalar($value_raw) ? trim((string) $value_raw) : '';
-            if (strpos($value, '|') !== false || strpos($value, ',') !== false) {
-              $parts = preg_split('/[|,]+/', $value);
-              $value = array_values(array_filter(array_map(function ($part) {
-                return trim((string) $part);
-              }, $parts), function ($v) {
-                return $v !== '';
-              }));
+          } elseif (is_scalar($value_raw)) {
+            $value = trim((string) $value_raw);
+            if ($value !== '') {
+              $values = [$value];
             }
           }
 
+          $expanded = [];
+          foreach ($values as $candidate) {
+            $candidate = trim($candidate);
+            if ($candidate === '') {
+              continue;
+            }
+            if (strpos($candidate, '|') !== false || strpos($candidate, ',') !== false || strpos($candidate, "\n") !== false || strpos($candidate, "\r") !== false) {
+              $parts = preg_split("/[|,\r\n]+/", $candidate);
+              foreach ($parts as $part) {
+                $part = trim((string) $part);
+                if ($part !== '') {
+                  $expanded[] = $part;
+                }
+              }
+            } else {
+              $expanded[] = $candidate;
+            }
+          }
+
+          $values = array_values(array_unique($expanded));
+
           return [
             'id'    => $id,
-            'value' => $value,
+            'value' => $values,
           ];
-        }, $q['show_if']);
+        }, $raw_show_if);
 
         $conds = array_values(array_filter($conds, function ($cond) {
-          return !empty($cond['id']);
+          if (empty($cond['id'])) {
+            return false;
+          }
+          if (!isset($cond['value'])) {
+            return false;
+          }
+          if (is_array($cond['value'])) {
+            return count(array_filter($cond['value'], function ($v) {
+              return is_string($v) && $v !== '';
+            })) > 0;
+          }
+          return is_string($cond['value']) && trim($cond['value']) !== '';
         }));
+
+        $conds = array_map(function ($cond) {
+          $cond['value'] = array_values(array_filter(array_map('trim', (array) $cond['value']), function ($v) {
+            return $v !== '';
+          }));
+          return $cond;
+        }, $conds);
 
         if (count($conds) === 1) {
           $field['show_if'] = $conds[0];
